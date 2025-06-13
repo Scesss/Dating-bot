@@ -3,8 +3,7 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 def build_gender_keyboard():
     return ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="Male"), KeyboardButton(text="Female")],
-            [KeyboardButton(text="Non-binary"), KeyboardButton(text="Prefer not to say")]
+            [KeyboardButton(text="Male"), KeyboardButton(text="Female")]
         ],
         resize_keyboard=True,
         one_time_keyboard=True

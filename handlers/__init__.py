@@ -1,6 +1,6 @@
 from aiogram import Router
 from .common import common_router
-from .questionnaire import questionnaire_router
+from .questionnaire import router as questionnaire_router
 
 router = Router()
 router.include_router(common_router)
