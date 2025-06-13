@@ -1,7 +1,7 @@
 from aiogram import Router, types, F
 from aiogram.fsm.context import FSMContext
 from states.profile_states import ProfileStates
-from keyboards.builders import build_gender_keyboard, build_preference_keyboard
+from keyboards.builders import build_gender_keyboard, build_preference_keyboard, build_confirmation_keyboard
 
 router = Router()
 
