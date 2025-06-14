@@ -1,4 +1,62 @@
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram import types
+
+# Клавиатура главного меню редактирования
+def get_edit_menu_kb():
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        types.InlineKeyboardButton(
+            text="◀️ Назад",
+            callback_data="cancel_edit"
+        ),
+        types.InlineKeyboardButton(
+            text="🔄 Заполнить заново",
+            callback_data="refill_profile"
+        )
+    )
+    builder.row(
+        types.InlineKeyboardButton(
+            text="✏️ Редактировать параметры",
+            callback_data="edit_params"
+        )
+    )
+    return builder.as_markup()
+
+# Клавиатура выбора параметров для редактирования
+def get_params_menu_kb():
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        types.InlineKeyboardButton(
+            text="👤 Имя",
+            callback_data="edit_name"
+        ),
+        types.InlineKeyboardButton(
+            text="🔢 Возраст",
+            callback_data="edit_age"
+        )
+    )
+    builder.row(
+        types.InlineKeyboardButton(
+            text="📝 Bio",
+            callback_data="edit_bio"
+        ),
+        types.InlineKeyboardButton(
+            text="🖼 Фото",
+            callback_data="edit_photo"
+        )
+    )
+    builder.row(
+        types.InlineKeyboardButton(
+            text="📍 Гео",
+            callback_data="edit_geo"
+        ),
+        types.InlineKeyboardButton(
+            text="◀️ Назад",
+            callback_data="back_to_edit_menu"
+        )
+    )
+    return builder.as_markup()
 
 def build_menu_keyboard():
     return ReplyKeyboardMarkup(

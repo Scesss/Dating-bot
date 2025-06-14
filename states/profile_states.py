@@ -10,3 +10,4 @@ class ProfileStates(StatesGroup):
     LOCATION = State()      # Make sure this exists
     CONFIRMATION = State()
     MENU = State()
+    EDIT_PROFILE = State()
