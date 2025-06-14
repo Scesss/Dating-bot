@@ -6,7 +6,6 @@ class ProfileStates(StatesGroup):
     GENDER = State()
     LOOKING_FOR = State()
     BIO = State()
-    INTERESTS = State()     # Correct spelling
     PHOTO = State()
     LOCATION = State()      # Make sure this exists
     CONFIRMATION = State()
