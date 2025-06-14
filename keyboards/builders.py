@@ -1,5 +1,16 @@
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 
+def build_menu_keyboard():
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="Смотреть Анкеты")],
+            [KeyboardButton(text="Моя Анкета")],
+            [KeyboardButton(text="Топ"), KeyboardButton(text="Сон")]
+        ],
+        resize_keyboard=True,
+        one_time_keyboard=True
+    )
+
 def build_gender_keyboard():
     return ReplyKeyboardMarkup(
         keyboard=[
