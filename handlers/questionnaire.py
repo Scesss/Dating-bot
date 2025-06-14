@@ -1,10 +1,12 @@
 from aiogram import Router, types, F
 from aiogram.fsm.context import FSMContext
+
+from handlers.common import cmd_start
 from states.profile_states import ProfileStates
-from keyboards.builders import (build_gender_keyboard, build_preference_keyboard,
-                                build_confirmation_keyboard, build_location_keyboard)
+from keyboards.builders import *
 from aiogram.filters import StateFilter
 from services.geocoding import get_city_name
+from utils.navigation import Navigation
 from aiogram.filters import Command
 
 
@@ -13,16 +15,24 @@ router = Router()
 # Handle name
 @router.message(StateFilter(ProfileStates.NAME))
 async def process_name(message: types.Message, state: FSMContext):
+    if message.text == "🚫 Отмена":
+        await cmd_start(message, state)
+        return
+
     if len(message.text) < 2:
         return await message.answer("Имя не может быть короче двух букв")
     await state.update_data(name=message.text)
-    await message.answer("Сколько тебе лет?")
+    await message.answer("Сколько тебе лет?", reply_markup=build_back_keyboard())
     await state.set_state(ProfileStates.AGE)
 
 
 # Handle age
 @router.message(StateFilter(ProfileStates.AGE))
 async def process_age(message: types.Message, state: FSMContext):
+    if message.text == "⬅️ Назад":
+        await Navigation.go_back(message, state)
+        return
+
     if not message.text.isdigit():
         return await message.answer("Возраст должен быть целым числом.")
 
@@ -41,6 +51,10 @@ async def process_age(message: types.Message, state: FSMContext):
 # Handle gender
 @router.message(StateFilter(ProfileStates.GENDER))
 async def process_gender(message: types.Message, state: FSMContext):
+    if message.text == "⬅️ Назад":
+        await Navigation.go_back(message, state)
+        return
+
     valid_genders = ["Парень", "Девушка"]
     if message.text not in valid_genders:
         return await message.answer("Нет такого варианта ответа")
@@ -56,6 +70,10 @@ async def process_gender(message: types.Message, state: FSMContext):
 # Handle preference
 @router.message(StateFilter(ProfileStates.LOOKING_FOR))
 async def process_preference(message: types.Message, state: FSMContext):
+    if message.text == "⬅️ Назад":
+        await Navigation.go_back(message, state)
+        return
+
     valid_options = ["Девушки", "Парни"]
     if message.text not in valid_options:
         return await message.answer("Нет такого варианта ответа")
@@ -63,7 +81,7 @@ async def process_preference(message: types.Message, state: FSMContext):
     await state.update_data(looking_for=message.text)
     await message.answer(
         "Расскажи о себе:",
-        reply_markup=types.ReplyKeyboardRemove()
+        reply_markup=build_back_keyboard()
     )
     await state.set_state(ProfileStates.BIO)
 
@@ -71,6 +89,10 @@ async def process_preference(message: types.Message, state: FSMContext):
 # Handle bio
 @router.message(StateFilter(ProfileStates.BIO))
 async def process_bio(message: types.Message, state: FSMContext):
+    if message.text == "⬅️ Назад":
+        await Navigation.go_back(message, state)
+        return
+
     # if len(message.text) < 50:
     #     return await message.answer("Your bio should be at least 50 characters. Try again:")
     #
@@ -78,7 +100,7 @@ async def process_bio(message: types.Message, state: FSMContext):
         return await message.answer("Ваше сообщение не должно быть длиннее 1000 символов.")
 
     await state.update_data(bio=message.text)
-    await message.answer("Твое фото?")
+    await message.answer("Твое фото?", reply_markup=build_back_keyboard())
     await state.set_state(ProfileStates.PHOTO)
 
 
@@ -86,6 +108,10 @@ async def process_bio(message: types.Message, state: FSMContext):
 # Handle photo
 @router.message(StateFilter(ProfileStates.PHOTO, F.photo))
 async def process_photo(message: types.Message, state: FSMContext):
+    if message.text == "⬅️ Назад":
+        await Navigation.go_back(message, state)
+        return
+
     # Get highest resolution photo
     photo = message.photo[-1]
     await state.update_data(photo_id=photo.file_id)
@@ -112,6 +138,10 @@ async def process_photo_invalid(message: types.Message):
 # Remove the old LOCATION handler and replace with this:
 @router.message(ProfileStates.LOCATION)
 async def process_location(message: types.Message, state: FSMContext):
+    if message.text == "⬅️ Назад":
+        await Navigation.go_back(message, state)
+        return
+
     location_data = None
     city_name = None
 
