@@ -102,52 +102,72 @@ async def process_photo(message: types.Message, state: FSMContext):
 async def process_photo_invalid(message: types.Message):
     await message.answer("Требуется фото.")
 
+# @router.message(ProfileStates.LOCATION,F.text == "✏️ Ввести город вручную")
+# async def request_city_input(message: types.Message):
+#     await message.answer(
+#         "Пожалуйста, введите название вашего города:",
+#         reply_markup=types.ReplyKeyboardRemove()
+#     )
 
 # Remove the old LOCATION handler and replace with this:
 @router.message(ProfileStates.LOCATION)
 async def process_location(message: types.Message, state: FSMContext):
     location_data = None
+    city_name = None
 
+    # Handle location sharing via button
     if message.location:
-        # User shared location via button
         lat = message.location.latitude
         lon = message.location.longitude
         location_data = f"{lat},{lon}"
-        await state.update_data(location=location_data)
-        await message.answer("📍 Локация получена! Спасибо")
-    elif message.text and message.text == "🚫 Продолжить без локации":
-        # User chose to skip
-        await state.update_data(location=None)
-        await message.answer("Геолокация не будет использоваться при поиске")
+        city_name = await get_city_name(lat, lon)
+        await message.answer(f"📍 Местоположение получено: {city_name}")
+
+    # Handle skip location
+    elif message.text and message.text == "🚫 Пропустить":
+        await message.answer("Определение местоположения пропущено.")
+
+    # Handle text input for city name
+    elif message.text:
+        # Simple validation
+        if len(message.text) < 2:
+            await message.answer("Пожалуйста, введите корректное название города.")
+            return
+
+        city_name = message.text
+        await message.answer(f"Город сохранён: {city_name}")
+
     else:
         # Invalid input
-        await message.answer("Ошибка, используйте кнопки снизу")
-        return  # Stay in current state
+        await message.answer("Пожалуйста, используйте кнопки ниже или введите название города.")
+        return
+
+    # Update state data
+    await state.update_data({
+        "location": location_data,
+        "city_name": city_name  # Store both coordinates and city name
+    })
+
+    # Proceed to confirmation
+    await show_confirmation(message, state)
 
 
-    # Prepare confirmation
+async def show_confirmation(message: types.Message, state: FSMContext):
     data = await state.get_data()
 
-    city_name = "Не указан"
-    if data.get('location'):
-        try:
-            lat, lon = map(float, data['location'].split(','))
-            city_name = await get_city_name(lat, lon)
-        except Exception as e:
-            # logger.error(f"Failed to get city name: {e}")
-            city_name = "Неизвестный город"
-
+    # Prepare confirmation text
     confirmation_text = (
-        "📝 Подтвердите данные вашего профиля:\n\n"
-        f"👤 Имя: {data.get('name', 'N/A')}\n"
-        f"🎂 Возраст: {data.get('age', 'N/A')}\n"
-        f"🚻 Пол: {data.get('gender', 'N/A')}\n"
-        f"💘 Ищу: {data.get('looking_for', 'N/A')}\n"
-        f"🌎: {city_name}\n"  # Show city name here
-        f"📖 О себе: {data.get('bio', 'N/A')[:500]}\n"
-        "Все верно?"
+        "📝 Пожалуйста, подтвердите ваш профиль:\n\n"
+        f"👤 Имя: {data.get('name', 'Н/Д')}\n"
+        f"🎂 Возраст: {data.get('age', 'Н/Д')}\n"
+        f"🚻 Пол: {data.get('gender', 'Н/Д')}\n"
+        f"💘 Ищу: {data.get('looking_for', 'Н/Д')}\n"
+        f"📍 Город: {data.get('city_name', 'Не указан')}\n"
+        f"📖 О себе: {data.get('bio', 'Н/Д')[:100]}...\n"
+        "Всё верно?"
     )
 
+    # Show profile photo if available
     if 'photo_id' in data:
         await message.answer_photo(
             photo=data['photo_id'],
@@ -162,12 +182,9 @@ async def process_location(message: types.Message, state: FSMContext):
 
     await state.set_state(ProfileStates.CONFIRMATION)
 
-
 @router.message(ProfileStates.CONFIRMATION)
 async def process_confirmation(message: types.Message, state: FSMContext):
     data = await state.get_data()
-
-
 
     if message.text == "✅ Верно":
         # Save profile to database (we'll implement this later)

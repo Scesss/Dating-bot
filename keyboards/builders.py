@@ -31,8 +31,9 @@ def build_confirmation_keyboard():
 def build_location_keyboard():
     return ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="📍 Поделиться локацией", request_location=True)],
-            [KeyboardButton(text="🚫 Продолжить без локации")]
+            [KeyboardButton(text="📍 Поделиться местоположением", request_location=True)],
+            # [KeyboardButton(text="✏️ Ввести город вручную")],
+            [KeyboardButton(text="🚫 Пропустить")]
         ],
         resize_keyboard=True,
         one_time_keyboard=True
