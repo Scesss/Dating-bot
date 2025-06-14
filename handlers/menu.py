@@ -9,6 +9,7 @@ from aiogram.filters import StateFilter
 from services.geocoding import get_city_name
 from utils.navigation import Navigation
 from aiogram.filters import Command
+from .edit_profile import cmd_edit
 
 router = Router()
 
@@ -19,7 +20,8 @@ async def process_choose(message: types.Message, state: FSMContext):
         return await message.answer("Нет такого варианта ответа")
     
     if message.text == "Моя Анкета":
-        await cmd_profile(message, state)
+        await state.set_state(ProfileStates.EDIT_PROFILE)
+        await cmd_edit(message, state)
         return
     elif message.text == "Смотреть Анкеты":
         return await message.answer("Пока такой функции нет")
