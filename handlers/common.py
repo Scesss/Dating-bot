@@ -3,6 +3,7 @@ from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from states.profile_states import ProfileStates
 from keyboards.builders import build_cancel_keyboard
+from keyboards.builders import build_menu_keyboard
 import logging
 
 logger = logging.getLogger(__name__)
@@ -15,10 +16,10 @@ async def cmd_start(message: types.Message, state: FSMContext):
     await state.clear()
 
     logger.info(f"Start command from {message.from_user.id}")
-    await message.answer("🌟 Привет! Отправляй /profile чтобы заполнить анкету.",
-                         reply_markup=types.ReplyKeyboardRemove()
-                         )
-
+    await message.answer("🌟 Это твоя анкета:",
+                         reply_markup=build_menu_keyboard())
+    await state.set_state(ProfileStates.MENU)
+    
 @common_router.message(Command("profile"))
 async def cmd_profile(message: types.Message, state: FSMContext):
     logger.info(f"Profile command from {message.from_user.id}")

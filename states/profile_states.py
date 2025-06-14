@@ -9,3 +9,4 @@ class ProfileStates(StatesGroup):
     PHOTO = State()
     LOCATION = State()      # Make sure this exists
     CONFIRMATION = State()
+    MENU = State()
