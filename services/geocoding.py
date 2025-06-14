@@ -11,8 +11,8 @@ async def get_city_name(latitude: float, longitude: float) -> str:
             location = await geolocator.reverse((latitude, longitude), exactly_one=True)
             if location:
                 address = location.raw.get('address', {})
-                return address.get('city', address.get('town', "Unknown City"))
-        return "Unknown Location"
+                return address.get('city', address.get('town', "Неизвестный город"))
+        return "Неизвестная локация"
     except Exception as e:
         logger.error(f"Geocoding failed: {e}")
-        return "Unknown Location"
+        return "Неизвестная локация"

@@ -13,13 +13,13 @@ common_router = Router()
 async def cmd_start(message: types.Message, state: FSMContext):
     await state.clear()
     logger.info(f"Start command from {message.from_user.id}")
-    await message.answer("🌟 Welcome! Type /profile to create your profile")
+    await message.answer("🌟 Привет! Отправляй /profile чтобы заполнить анкету.")
 
 @common_router.message(Command("profile"))
 async def cmd_profile(message: types.Message, state: FSMContext):
     logger.info(f"Profile command from {message.from_user.id}")
     await state.set_state(ProfileStates.NAME)
-    await message.answer("Let's create your profile! What's your name?")
+    await message.answer("Как тебя зовут?")
 
 # Export the router
 __all__ = ['common_router']
