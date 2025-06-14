@@ -2,33 +2,48 @@ from aiogram import Router, types, F
 from aiogram.fsm.context import FSMContext
 from states.profile_states import ProfileStates
 from keyboards.builders import build_gender_keyboard, build_preference_keyboard, build_confirmation_keyboard
+from aiogram.filters import StateFilter
+from aiogram.filters import Command
+
 
 router = Router()
 
+# @router.message()
+# async def
+
+# @router.message(Command("start"))
+# async def cmd_start(message: types.Message, state: FSMContext):
+#     await state.clear()
+#     await message.answer(
+#         "🌟 Welcome to Dating Bot! Let's create your profile.\n"
+#         "Type /profile to get started."
+#     )
+#
+#
+# @router.message(Command("profile"))
+# async def start_profile(message: types.Message, state: FSMContext):
+#     current_state = await state.get_state()
+#     print(f"Current state: {current_state}")
+#     await state.set_state(ProfileStates.NAME)
+#     await message.answer("Let's create your profile! What's your name?")
+
 
 # Start questionnaire
-@router.message(F.command == "start")
-async def start_questionnaire(message: types.Message, state: FSMContext):
-    await message.answer(
-        "🌟 Welcome to Dating Bot! Let's create your profile.\n"
-        "First, what's your name?"
-    )
-    await state.set_state(ProfileStates.NAME)
+
 
 
 # Handle name
-@router.message(ProfileStates.NAME)
+@router.message(StateFilter(ProfileStates.NAME))
 async def process_name(message: types.Message, state: FSMContext):
     if len(message.text) < 2:
         return await message.answer("Name should be at least 2 characters. Try again:")
-
     await state.update_data(name=message.text)
     await message.answer("Great! Now how old are you?")
     await state.set_state(ProfileStates.AGE)
 
 
 # Handle age
-@router.message(ProfileStates.AGE)
+@router.message(StateFilter(ProfileStates.AGE))
 async def process_age(message: types.Message, state: FSMContext):
     if not message.text.isdigit():
         return await message.answer("Please enter a valid age (numbers only)")
@@ -46,7 +61,7 @@ async def process_age(message: types.Message, state: FSMContext):
 
 
 # Handle gender
-@router.message(ProfileStates.GENDER)
+@router.message(StateFilter(ProfileStates.GENDER))
 async def process_gender(message: types.Message, state: FSMContext):
     valid_genders = ["Male", "Female", "Non-binary", "Prefer not to say"]
     if message.text not in valid_genders:
@@ -61,7 +76,7 @@ async def process_gender(message: types.Message, state: FSMContext):
 
 
 # Handle preference
-@router.message(ProfileStates.LOOKING_FOR)
+@router.message(StateFilter(ProfileStates.LOOKING_FOR))
 async def process_preference(message: types.Message, state: FSMContext):
     valid_options = ["Men", "Women", "Anyone", "Non-binary only"]
     if message.text not in valid_options:
@@ -76,7 +91,7 @@ async def process_preference(message: types.Message, state: FSMContext):
 
 
 # Handle bio
-@router.message(ProfileStates.BIO)
+@router.message(StateFilter(ProfileStates.BIO))
 async def process_bio(message: types.Message, state: FSMContext):
     if len(message.text) < 50:
         return await message.answer("Your bio should be at least 50 characters. Try again:")
@@ -90,7 +105,7 @@ async def process_bio(message: types.Message, state: FSMContext):
 
 
 # Handle interests
-@router.message(ProfileStates.INTERESTS)
+@router.message(StateFilter(ProfileStates.INTERESTS))
 async def process_interests(message: types.Message, state: FSMContext):
     interests = [i.strip() for i in message.text.split(",") if i.strip()]
     if len(interests) < 2:
@@ -102,7 +117,7 @@ async def process_interests(message: types.Message, state: FSMContext):
 
 
 # Handle photo
-@router.message(ProfileStates.PHOTO, F.photo)
+@router.message(StateFilter(ProfileStates.PHOTO, F.photo))
 async def process_photo(message: types.Message, state: FSMContext):
     # Get highest resolution photo
     photo = message.photo[-1]
@@ -113,13 +128,13 @@ async def process_photo(message: types.Message, state: FSMContext):
 
 
 # Handle invalid photo
-@router.message(ProfileStates.PHOTO)
+@router.message(StateFilter(ProfileStates.PHOTO))
 async def process_photo_invalid(message: types.Message):
     await message.answer("Please send a valid photo.")
 
 
 # Handle location
-@router.message(ProfileStates.LOCATION)
+@router.message(StateFilter(ProfileStates.LOCATION))
 async def process_location(message: types.Message, state: FSMContext):
     if len(message.text) < 2:
         return await message.answer("Please enter a valid city name.")
@@ -157,7 +172,7 @@ async def process_location(message: types.Message, state: FSMContext):
 
 
 # Handle confirmation
-@router.message(ProfileStates.CONFIRMATION)
+@router.message(StateFilter(ProfileStates.CONFIRMATION))
 async def process_confirmation(message: types.Message, state: FSMContext):
     if message.text == "✅ Confirm":
         # Save profile to database (we'll implement this later)
@@ -175,3 +190,5 @@ async def process_confirmation(message: types.Message, state: FSMContext):
         )
     else:
         await message.answer("Please choose an option using the buttons.")
+
+__all__ = ['router']

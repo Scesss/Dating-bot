@@ -1,27 +1,58 @@
 import asyncio
 import logging
+import sys
 from aiogram import Bot, Dispatcher
 from aiogram.enums import ParseMode
-from aiogram.client.default import DefaultBotProperties  # Add this import
+from aiogram.client.default import DefaultBotProperties
 from config import Config
-from handlers import router
+from handlers import main_router
+from aiogram.fsm.storage.memory import MemoryStorage
+from states import profile_states
+# Import your main router
 
-logging.basicConfig(level=logging.INFO)
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    stream=sys.stdout
+)
+logger = logging.getLogger(__name__)
 
 
 async def main():
-    # Updated bot initialization
-    bot = Bot(
-        token=Config.BOT_TOKEN,
-        default=DefaultBotProperties(parse_mode=ParseMode.HTML)
-    )
+    try:
+        # Initialize bot
+        bot = Bot(
+            token=Config.BOT_TOKEN,
+            default=DefaultBotProperties(parse_mode=ParseMode.HTML)
+        )
 
-    dp = Dispatcher()
+        # Test token validity
+        bot_info = await bot.get_me()
+        logger.info(f"Starting bot: @{bot_info.username} [ID: {bot_info.id}]")
 
-    # Include your router
-    dp.include_router(router)
+        dp = Dispatcher(storage=MemoryStorage())
 
-    await dp.start_polling(bot)
+        @dp.update.outer_middleware()
+        async def debug_middleware(handler, event, data):
+            logger.debug(f"Received update: {event}")
+            result = await handler(event, data)
+            return result
+
+
+        # Include your router with state handlers
+        dp.include_router(main_router)
+
+        # Start polling
+        logger.info("Starting polling with state management...")
+        # logger.info(f"States loaded: {profile_states.__all_states__}")
+        await dp.start_polling(bot)
+
+    except Exception as e:
+        logger.exception(f"Critical error: {e}")
+    finally:
+        logger.info("Bot stopped")
+        await bot.session.close()
 
 
 if __name__ == "__main__":

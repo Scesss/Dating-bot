@@ -1,20 +1,25 @@
-from aiogram import Router, types, F
+from aiogram import Router, types
+from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from states.profile_states import ProfileStates
+import logging
 
+logger = logging.getLogger(__name__)
+
+# Create router for common commands
 common_router = Router()
 
-@common_router.message(F.command == "start")
+@common_router.message(Command("start"))
 async def cmd_start(message: types.Message, state: FSMContext):
     await state.clear()
-    await message.answer(
-        "🌟 Welcome to Dating Bot! Let's create your profile.\n"
-        "We'll ask you a few questions to find perfect matches.\n\n"
-        "What's your name?"
-    )
-    await state.set_state(ProfileStates.NAME)
+    logger.info(f"Start command from {message.from_user.id}")
+    await message.answer("🌟 Welcome! Type /profile to create your profile")
 
-@common_router.message(F.command == "cancel")
-async def cmd_cancel(message: types.Message, state: FSMContext):
-    await state.clear()
-    await message.answer("Action canceled", reply_markup=types.ReplyKeyboardRemove())
+@common_router.message(Command("profile"))
+async def cmd_profile(message: types.Message, state: FSMContext):
+    logger.info(f"Profile command from {message.from_user.id}")
+    await state.set_state(ProfileStates.NAME)
+    await message.answer("Let's create your profile! What's your name?")
+
+# Export the router
+__all__ = ['common_router']
