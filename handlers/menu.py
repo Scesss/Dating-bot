@@ -1,31 +1,26 @@
-from aiogram import Router, types, F
-from aiogram.fsm.context import FSMContext
-
-from handlers.common import cmd_start
-from handlers.common import cmd_profile
-from states.profile_states import ProfileStates
-from keyboards.builders import *
-from aiogram.filters import StateFilter
-from services.geocoding import get_city_name
-from utils.navigation import Navigation
-from aiogram.filters import Command
-from .edit_profile import cmd_edit
+from aiogram import Router
+from aiogram.types import Message
+from keyboards.reply import main_menu
+from database.db import get_profile
+from keyboards.inline import edit_menu
 
 router = Router()
 
-@router.message(StateFilter(ProfileStates.MENU))
-async def process_choose(message: types.Message, state: FSMContext):
-    valid_answer = ["Смотреть Анкеты", "Моя Анкета", "Топ", "Сон"]
-    if message.text not in valid_answer:
-        return await message.answer("Нет такого варианта ответа")
-    
-    if message.text == "Моя Анкета":
-        await state.set_state(ProfileStates.EDIT_PROFILE)
-        await cmd_edit(message, state)
-        return
-    elif message.text == "Смотреть Анкеты":
-        return await message.answer("Пока такой функции нет")
-    elif message.text == "Сон":
-        return await message.answer("Пока такой функции нет")
-    elif message.text == "Топ":
-        return await message.answer("Пока такой функции нет")
+@router.message(lambda message: message.text == "👤 Моя анкета")
+async def cmd_profile(message: Message):
+    profile = await get_profile(message.from_user.id)
+    if profile:
+        text = (
+            f"👤 <b>Ваша анкета</b>\n"
+            f"Имя: {profile['name']}\n"
+            f"Пол: {profile['gender']}\n"
+            f"О себе: {profile['about']}\n"
+            f"Возраст: {profile['age']}\n"
+            f"Город: {profile['city']}\n"
+            f"Кого ищете: {profile['preference']}"
+        )
+        await message.answer(text, reply_markup=edit_menu(), parse_mode="HTML")
+    else:
+        from handlers.profile import start_profile
+        await message.answer("Сначала заполните анкету:", reply_markup=None)
+        await start_profile(message)
