@@ -1,5 +1,6 @@
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram.utils.keyboard import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram import types
 
 # Клавиатура главного меню редактирования
@@ -124,3 +125,10 @@ def build_cancel_keyboard():
         resize_keyboard=True,
         one_time_keyboard=True
     )
+
+def get_browse_keyboard(target_id: int):
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="❤", callback_data=f"like_{target_id}"),
+        InlineKeyboardButton(text=" ",callback_data=f"dislike_{target_id}")],
+     [InlineKeyboardButton(text="◀ Завершить просмотр", callback_data="exit_browse")]
+])

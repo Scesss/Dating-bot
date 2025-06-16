@@ -7,6 +7,8 @@ from keyboards.builders import *
 from aiogram.filters import StateFilter
 from services.geocoding import get_city_name
 from utils.navigation import Navigation
+from database import db
+import logging
 from aiogram.filters import Command
 
 
@@ -213,25 +215,41 @@ async def show_confirmation(message: types.Message, state: FSMContext):
     await state.set_state(ProfileStates.CONFIRMATION)
 
 @router.message(ProfileStates.CONFIRMATION)
+
+
+
+@router.message(ProfileStates.CONFIRMATION)
 async def process_confirmation(message: types.Message, state: FSMContext):
     data = await state.get_data()
-
     if message.text == "✅ Верно":
-        # Save profile to database (we'll implement this later)
-        data = await state.get_data()
+        # Сохранение профиля в базу данных
+        try:
+            db.save_profile(
+                user_id=message.from_user.id,
+                name=data.get('name'),
+                age=data.get('age'),
+                gender=data.get('gender'),
+                looking_for=data.get('looking_for'),
+                bio=data.get('bio'),
+                photo_id=data.get('photo_id'),
+                city=data.get('city_name'),              # название города (может быть None)
+                # координаты храним как числовые поля; распарсим строку "lat,lon", если есть
+                lat=float(data['location'].split(',')[0]) if data.get('location') else None,
+                lon=float(data['location'].split(',')[1]) if data.get('location') else None
+            )
+        except Exception as e:
+            logging.error(f"Error saving profile: {e}")
+
         await message.answer(
-            "Профиль сохранен успешно! 🎉\n",
+            "Профиль сохранён успешно! 🎉",
             reply_markup=types.ReplyKeyboardRemove()
         )
         await state.clear()
-    elif message.text == "🔄 Заполнить заново":
-        await state.clear()
-        await message.answer(
-            "Profile creation restarted. Type /start to begin again.",
-            reply_markup=types.ReplyKeyboardRemove()
-        )
-    else:
-        await message.answer("Нет такого варианта ответа")
+        # После сохранения можно показать меню / профиль пользователю,
+        # например, отправить приветствие или сразу вызвать /start.
+        # (В данном случае мы просто очистили состояние и убрали клавиатуру.)
+
+
 
 
 
