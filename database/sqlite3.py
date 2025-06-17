@@ -1,6 +1,8 @@
 import requests
+import os
 
-SERVER_URL = "http://188.253.20.174:5000/query"
+SERVER_IP = os.getenv("SERVER_IP")
+SERVER_URL = f"http://{SERVER_IP}:5000/query"
 
 class Connection:
     def cursor(self):
