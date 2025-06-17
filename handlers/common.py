@@ -32,6 +32,9 @@ async def show_profile_info(message: types.Message, profile: dict, for_self: boo
     """Отправляет сообщение с информацией анкеты.
     profile – словарь с данными профиля из БД."""
     # Собираем текст
+
+
+
     caption = (
         ( "🌟 Это твоя анкета:\n\n" if for_self else "" ) +
         f"👤 Имя: {profile.get('name', 'N/A')}\n"
@@ -42,6 +45,7 @@ async def show_profile_info(message: types.Message, profile: dict, for_self: boo
         f"📖 О себе: { (profile.get('bio') or 'Н/Д')[:1000] }"
     )
     # Отправляем фото с подписью, если есть фото
+
     try:
         if profile.get('photo_id'):
             await message.answer_photo(profile['photo_id'], caption=caption)
@@ -57,6 +61,8 @@ async def cmd_start(message: types.Message, state: FSMContext):
     user_id = message.from_user.id
     logger.info(f"Start command from {user_id}")
     profile = db.get_profile(user_id)
+
+
     if profile:
         # Если профиль есть – показываем его
         await message.answer("🌟 Это твоя анкета:", reply_markup=build_menu_keyboard())

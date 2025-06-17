@@ -7,7 +7,7 @@ from aiogram.client.default import DefaultBotProperties
 from config import Config
 from handlers import main_router
 from aiogram.fsm.storage.memory import MemoryStorage
-from database.db import init_db
+# from database.db import init_db
 
 from states import profile_states
 # Import your main router
@@ -58,5 +58,5 @@ async def main():
 
 
 if __name__ == "__main__":
-    init_db()
+    # init_db()
     asyncio.run(main())

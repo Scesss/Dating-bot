@@ -29,8 +29,8 @@ def get_params_menu_kb():
     builder = InlineKeyboardBuilder()
     builder.row(
         types.InlineKeyboardButton(
-            text="👤 Имя",
-            callback_data="edit_name"
+            text="◀️ Назад",
+            callback_data="back_to_edit_menu"
         ),
         types.InlineKeyboardButton(
             text="🔢 Возраст",
@@ -47,16 +47,7 @@ def get_params_menu_kb():
             callback_data="edit_photo"
         )
     )
-    builder.row(
-        types.InlineKeyboardButton(
-            text="📍 Гео",
-            callback_data="edit_geo"
-        ),
-        types.InlineKeyboardButton(
-            text="◀️ Назад",
-            callback_data="back_to_edit_menu"
-        )
-    )
+
     return builder.as_markup()
 
 def build_menu_keyboard():

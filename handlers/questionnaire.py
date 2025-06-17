@@ -11,10 +11,12 @@ from database import db
 import logging
 from aiogram.filters import Command
 
-
+logger = logging.getLogger(__name__)
 router = Router()
 
 # Handle name
+
+
 @router.message(StateFilter(ProfileStates.NAME))
 async def process_name(message: types.Message, state: FSMContext):
     if message.text == "🚫 Отмена":
@@ -214,9 +216,6 @@ async def show_confirmation(message: types.Message, state: FSMContext):
 
     await state.set_state(ProfileStates.CONFIRMATION)
 
-@router.message(ProfileStates.CONFIRMATION)
-
-
 
 @router.message(ProfileStates.CONFIRMATION)
 async def process_confirmation(message: types.Message, state: FSMContext):
@@ -237,14 +236,19 @@ async def process_confirmation(message: types.Message, state: FSMContext):
                 lat=float(data['location'].split(',')[0]) if data.get('location') else None,
                 lon=float(data['location'].split(',')[1]) if data.get('location') else None
             )
+
         except Exception as e:
             logging.error(f"Error saving profile: {e}")
 
-        await message.answer(
-            "Профиль сохранён успешно! 🎉",
-            reply_markup=types.ReplyKeyboardRemove()
-        )
-        await state.clear()
+        # await message.answer(
+        #     "Профиль сохранён успешно! 🎉",
+        #     reply_markup=types.ReplyKeyboardRemove()
+        # )
+        # await state.clear()
+        await message.answer("Профиль сохранён успешно! 🎉", reply_markup=build_menu_keyboard())
+        await state.set_state(ProfileStates.MENU)
+
+
         # После сохранения можно показать меню / профиль пользователю,
         # например, отправить приветствие или сразу вызвать /start.
         # (В данном случае мы просто очистили состояние и убрали клавиатуру.)

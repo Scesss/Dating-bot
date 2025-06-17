@@ -6,16 +6,11 @@ from keyboards.builders import *
 from aiogram.filters import StateFilter
 from database import db
 from aiogram import Bot
-
 import logging
 
 logger = logging.getLogger(__name__)
 
 
-from services.geocoding import get_city_name
-from utils.navigation import Navigation
-from aiogram.filters import Command
-from .edit_profile import cmd_edit
 
 router = Router()
 
