@@ -84,24 +84,20 @@ def user_liked(user_id, target_id):
 
 def get_next_profile(current_user_id, current_gender, current_preference):
     """Найти подходящую анкету для текущего пользователя по критериям."""
+
     cursor.execute(
-        """SELECT user_id, name, age, gender, looking_for, bio, photo_id, city 
-           FROM profiles 
-           WHERE user_id != ? 
-             AND gender = ? 
-             AND looking_for = ? 
-             AND user_id NOT IN (
-                   SELECT liked_user_id FROM likes WHERE user_id = ?
-               )
-           ORDER BY RANDOM() 
-           LIMIT 1""",
-        (current_user_id,
-         # текущий пользователь ищет current_preference, значит пол анкеты = current_preference
-         # и предпочтения анкеты = пол текущего пользователя
-         current_preference,
-         current_gender,
-         current_user_id)
+        """
+        SELECT user_id, name, age, gender, looking_for, bio, photo_id, city 
+          FROM profiles 
+         ORDER BY RANDOM() 
+         LIMIT 1
+        """
     )
+    result = cursor.fetchone()
+
+    # params = (current_user_id, current_preference, current_gender, current_user_id)
+    # logger.info("Ищу профиль с SQL: %s\n PARAMETERS: %r", sql, params)
+    # cursor.execute(sql, params)
     result = cursor.fetchone()
     if result:
         cols = [desc[0] for desc in cursor.description]

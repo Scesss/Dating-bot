@@ -21,6 +21,13 @@ class Cursor:
     def execute(self, sql, params=None):
         # ВСЕ запросы — и SELECT, и INSERT/UPDATE/DELETE — шлём на сервер
         resp = requests.post(SERVER_URL, json={"sql": sql, "params": params or []})
+        if not resp.ok:
+            # распечатаем, что пришло от сервера
+            print("=== SERVER ERROR ===")
+            # print("REQUEST JSON:", payload)
+            print("STATUS CODE:", resp.status_code)
+            print("RESPONSE BODY:", resp.text)
+            resp.raise_for_status()
         resp.raise_for_status()
 
         # Если это SELECT — парсим строки, иначе игнорируем ответ
