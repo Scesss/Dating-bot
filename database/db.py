@@ -82,7 +82,7 @@ def user_liked(user_id, target_id):
     cursor.execute("SELECT 1 FROM likes WHERE user_id = ? AND liked_user_id = ?", (user_id, target_id))
     return cursor.fetchone() is not None
 
-def get_next_profile(current_user_id, current_gender, current_preference):
+def get_next_profile(current_user_id, current_gender, current_preference, current_city, current_lat, current_lon):
     """Найти подходящую анкету для текущего пользователя по критериям."""
 
     cursor.execute(

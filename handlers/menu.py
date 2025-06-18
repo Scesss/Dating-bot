@@ -60,7 +60,10 @@ async def process_choose(message: types.Message, state: FSMContext):
             current_user_id=message.from_user.id,
             current_gender=my_profile['gender'],
             current_preference="Парни" if my_profile['looking_for'] == "Парни"
-            else "Девушки"
+            else "Девушки",
+            current_city = my_profile['city'] or 'Не указан',
+            current_lat = my_profile['lat'],
+            current_lon = my_profile['lon']
         )
         if result:
             text = (f"{result['name']}, {result['age']}, {result.get('city') or 'Не указан'}\n\n"
@@ -94,9 +97,13 @@ async def show_next_profile(callback: types.CallbackQuery):
     my_profile = db.get_profile(user_id)
     result = None
     if my_profile:
-        result = db.get_next_profile(user_id,
-                                     current_gender=my_profile['gender'],
-                                     current_preference="Парни" if my_profile['looking_for']=="Парни" else "Девушки")
+        result = db.get_next_profile(current_user_id=user_id,
+            current_gender=my_profile['gender'],
+            current_preference="Парни" if my_profile['looking_for'] == "Парни"
+            else "Девушки",
+            current_city = my_profile['city'] or 'Не указан',
+            current_lat = my_profile['lat'],
+            current_lon = my_profile['lon'])
     if result:
         # Отправляем следующую анкету
         text = (f"{result['name']}, {result['age']}, {result.get('city') or 'Не указан'}\n\n"
