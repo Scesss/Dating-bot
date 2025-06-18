@@ -1,5 +1,6 @@
 import database.sqlite3 as sqlite3
 import requests
+import math
 import os
 
 SERVER_IP = os.getenv("SERVER_IP")
@@ -82,24 +83,88 @@ def user_liked(user_id, target_id):
     cursor.execute("SELECT 1 FROM likes WHERE user_id = ? AND liked_user_id = ?", (user_id, target_id))
     return cursor.fetchone() is not None
 
-def get_next_profile(current_user_id, current_gender, current_preference, current_city, current_lat, current_lon):
-    """Найти подходящую анкету для текущего пользователя по критериям."""
+def get_next_profile(
+    current_user_id: int,
+    current_gender: str,
+    current_preference: str,
+    current_city: str = None,
+    current_lat: float = None,
+    current_lon: float = None,
+) -> dict | None:
+    """Найти следующую анкету:
+       – пол кандидата = ваше предпочтение
+       – предпочтение кандидата = ваш пол
+       – не показывать уже лайкнутых
+       – сначала анкеты из вашего города
+       – если есть координаты, считаем расстояние и сортируем по нему
+    """
+    
+    # 1) Собираем список лайкнутых, чтобы их исключить
+    cursor.execute(
+    "SELECT liked_user_id FROM likes WHERE user_id=?",
+    (current_user_id,)
+)
+    liked_rows = cursor.fetchall()
+    # Если курсор возвращает dict-подобные строки:
+    liked = { row['liked_user_id'] for row in liked_rows }
+    # Если вдруг остаются кортежи, можно на всякий случай так:
+    # liked = { row[0] if isinstance(row, (list, tuple)) else row['liked_user_id'] for row in liked_rows }
 
+    # 2) Выбираем всех подходящих по полу и предпочтению
     cursor.execute(
         """
-        SELECT user_id, name, age, gender, looking_for, bio, photo_id, city 
-          FROM profiles 
-         ORDER BY RANDOM() 
-         LIMIT 1
-        """
+        SELECT user_id,name,age,gender,looking_for,bio,photo_id,city,lat,lon
+          FROM profiles
+         WHERE user_id != ?
+           AND gender = ?
+           AND looking_for = ?
+        """,
+        (current_user_id, current_preference, current_gender)
     )
-    result = cursor.fetchone()
+    cols = [d[0] for d in cursor.description]
+    candidates = [
+        dict(zip(cols, row))
+        for row in cursor.fetchall()
+        if row[0] not in liked
+    ]
 
-    # params = (current_user_id, current_preference, current_gender, current_user_id)
-    # logger.info("Ищу профиль с SQL: %s\n PARAMETERS: %r", sql, params)
-    # cursor.execute(sql, params)
-    result = cursor.fetchone()
-    if result:
-        cols = [desc[0] for desc in cursor.description]
-        return dict(zip(cols, result))
-    return None
+    if not candidates:
+        return None
+
+    # 3) Разбиваем на тех, кто из вашего города, и остальных
+    same_city = []
+    others    = []
+    for p in candidates:
+        if current_city and p.get('city') == current_city:
+            same_city.append(p)
+        else:
+            others.append(p)
+
+    # 4) Хаверсин для расстояния
+    def haversine(lat1, lon1, lat2, lon2):
+        phi1, phi2 = math.radians(lat1), math.radians(lat2)
+        dphi = math.radians(lat2 - lat1)
+        dlon = math.radians(lon2 - lon1)
+        a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlon/2)**2
+        return 2 * 6371 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+
+    # 5) Подсчитываем distance_km, если есть обе пары координат
+    for p in same_city + others:
+        lat2, lon2 = p.get('lat'), p.get('lon')
+        if (
+            current_lat is not None and current_lon is not None
+            and lat2 is not None and lon2 is not None
+        ):
+            p['distance_km'] = round(
+                haversine(current_lat, current_lon, lat2, lon2), 2
+            )
+        else:
+            p['distance_km'] = None
+
+    # 6) Сортируем: сначала по городу (distance уже мелкий), внутри — по расстоянию
+    same_city.sort(key=lambda x: x['distance_km'] or float('inf'))
+    others.sort(   key=lambda x: x['distance_km'] or float('inf'))
+
+    # 7) Объединяем и возвращаем первую анкету
+    next_profile = (same_city + others)[0]
+    return next_profile

@@ -66,8 +66,10 @@ async def process_choose(message: types.Message, state: FSMContext):
             current_lon = my_profile['lon']
         )
         if result:
-            text = (f"{result['name']}, {result['age']}, {result.get('city') or 'Не указан'}\n\n"
-                f"{ (result.get('bio') or 'Н/Д')[:300] }")
+            text = (f"{result['name']}, {result['age']}, {result.get('city') or 'Не указан'}, ")
+            if result['distance_km'] is not None:
+                text += f"📍 {result['distance_km']} км"
+            text += f"\n\n{result['bio'][:200]}"
         # Ограничим био ~300 символов, чтобы не перегружать сообщение
             try:
                 if result.get('photo_id'):
@@ -79,7 +81,7 @@ async def process_choose(message: types.Message, state: FSMContext):
                 logger.error(f"Failed to send profile {result['user_id']}: {e}")
         else:
             await message.answer("Сейчас нет анкет, соответствующих вашим параметрам.")
-            await state.clear()
+            await state.set_state(ProfileStates.MENU)
             await message.answer(" Возвращение в меню.", reply_markup=build_menu_keyboard())
     elif message.text == "Сон":
         return await message.answer("Пока такой функции нет")
@@ -106,8 +108,11 @@ async def show_next_profile(callback: types.CallbackQuery):
             current_lon = my_profile['lon'])
     if result:
         # Отправляем следующую анкету
-        text = (f"{result['name']}, {result['age']}, {result.get('city') or 'Не указан'}\n\n"
-                f"{ (result.get('bio') or 'Н/Д')[:300] }")
+        text = (f"{result['name']}, {result['age']}, {result.get('city') or 'Не указан'}, ")
+        if result['distance_km'] is not None:
+            text += f"📍 {result['distance_km']} км"
+        text += f"\n\n{result['bio'][:200]}"
+
         try:
             if result.get('photo_id'):
                 await callback.message.answer_photo(result['photo_id'], caption=text,
