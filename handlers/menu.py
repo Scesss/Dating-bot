@@ -63,12 +63,8 @@ async def process_choose(message: types.Message, state: FSMContext):
             else "Девушки"
         )
         if result:
-            text = (f" Имя: {result['name']}\n"
-                f" Возраст: {result['age']}\n"
-                f" Пол: {result['gender']}\n"
-                f" Ищет: {result['looking_for']}\n"
-                f" Город: {result.get('city') or 'Не указан'}\n"
-                f" О себе: {(result.get('bio') or 'Н/Д')[:300]}")
+            text = (f"{result['name']}, {result['age']}, {result.get('city') or 'Не указан'}\n\n"
+                f"{ (result.get('bio') or 'Н/Д')[:300] }")
         # Ограничим био ~300 символов, чтобы не перегружать сообщение
             try:
                 if result.get('photo_id'):
@@ -103,12 +99,8 @@ async def show_next_profile(callback: types.CallbackQuery):
                                      current_preference="Парни" if my_profile['looking_for']=="Парни" else "Девушки")
     if result:
         # Отправляем следующую анкету
-        text = (f"👤 Имя: {result['name']}\n"
-                f"🎂 Возраст: {result['age']}\n"
-                f"🚻 Пол: {result['gender']}\n"
-                f"💘 Ищет: {result['looking_for']}\n"
-                f"📍 Город: {result.get('city') or 'Не указан'}\n"
-                f"📖 О себе: { (result.get('bio') or 'Н/Д')[:300] }")
+        text = (f"{result['name']}, {result['age']}, {result.get('city') or 'Не указан'}\n\n"
+                f"{ (result.get('bio') or 'Н/Д')[:300] }")
         try:
             if result.get('photo_id'):
                 await callback.message.answer_photo(result['photo_id'], caption=text,
@@ -156,5 +148,5 @@ async def on_dislike(callback: types.CallbackQuery, state: FSMContext):
 async def on_exit_browse(callback: types.CallbackQuery, state: FSMContext):
     # Выйти из режима просмотра
     await callback.message.delete()  # удаляем последнюю показанную анкету
-    await state.clear()
+    await state.set_state(ProfileStates.MENU)
     await callback.message.answer("Вы вернулись в меню.", reply_markup=build_menu_keyboard())

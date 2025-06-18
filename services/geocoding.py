@@ -46,3 +46,50 @@ async def get_city_name(latitude: float, longitude: float) -> str:
     except Exception as e:
         logger.error(f"Geocoding error: {e}")
         return "Ошибка определения местоположения"
+    
+async def is_valid_city(city_query: str) -> bool:
+    """Проверяет, что город существует (kind='locality') через Yandex Geocoder."""
+    api_key = Config.YANDEX_GEOCODER_API_KEY
+    if not api_key:
+        logger.error("Yandex Geocoder API key not configured")
+        return False
+
+    url = "https://geocode-maps.yandex.ru/1.x/"
+    params = {
+        "apikey": api_key,
+        "format": "json",
+        "lang": "ru_RU",
+        "kind": "locality",  # нас интересуют только населённые пункты
+        "results": 1,
+        "geocode": city_query
+    }
+
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(url, params=params, timeout=5.0)
+            resp.raise_for_status()
+            data = resp.json()
+    except Exception as e:
+        logger.error(f"Geocoding error for '{city_query}': {e}")
+        return False
+
+    features = (
+        data.get("response", {})
+            .get("GeoObjectCollection", {})
+            .get("featureMember", [])
+    )
+    if not features:
+        return False
+
+    # Проверяем, что хотя бы один результат имеет kind='locality'
+    for member in features:
+        kind = (
+            member.get("GeoObject", {})
+                  .get("metaDataProperty", {})
+                  .get("GeocoderMetaData", {})
+                  .get("kind")
+        )
+        if kind == "locality":
+            return True
+
+    return False

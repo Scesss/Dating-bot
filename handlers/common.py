@@ -20,13 +20,6 @@ common_router = Router()
 #     await message.answer("🌟 Это твоя анкета:",
 #                          reply_markup=build_menu_keyboard())
 #     await state.set_state(ProfileStates.MENU)
-    
-@common_router.message(Command("profile"))
-async def cmd_profile(message: types.Message, state: FSMContext):
-    logger.info(f"Profile command from {message.from_user.id}")
-    await state.set_state(ProfileStates.NAME)
-    await message.answer("Как тебя зовут?", reply_markup=build_cancel_keyboard())
-
 
 async def show_profile_info(message: types.Message, profile: dict, for_self: bool = True):
     """Отправляет сообщение с информацией анкеты.
@@ -75,7 +68,9 @@ async def cmd_start(message: types.Message, state: FSMContext):
         await state.set_state(ProfileStates.NAME)
         await message.answer("Как тебя зовут?", reply_markup=build_cancel_keyboard())
 
-
+@common_router.message(Command("profile"))
+async def cmd_profile(message: types.Message, state: FSMContext):
+    await cmd_start(message, state)
 
 # Export the router
 __all__ = ['common_router']

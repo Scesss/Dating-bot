@@ -5,7 +5,7 @@ from handlers.common import cmd_start
 from states.profile_states import ProfileStates
 from keyboards.builders import *
 from aiogram.filters import StateFilter
-from services.geocoding import get_city_name
+from services.geocoding import get_city_name, is_valid_city
 from utils.navigation import Navigation
 from database import db
 import logging
@@ -121,7 +121,7 @@ async def process_photo(message: types.Message, state: FSMContext):
     await state.update_data(photo_id=photo.file_id)
 
     await message.answer(
-        "Отправь мне свою геопозицию:",
+        "Отправь мне свою геопозицию или введи название города:",
         reply_markup=build_location_keyboard()
     )
     await state.set_state(ProfileStates.LOCATION)
@@ -162,18 +162,14 @@ async def process_location(message: types.Message, state: FSMContext):
         await message.answer("Определение местоположения пропущено.")
 
     # Handle text input for city name
-    elif message.text:
+    elif message.text and await is_valid_city(message.text):
         # Simple validation
-        if len(message.text) < 2:
-            await message.answer("Пожалуйста, введите корректное название города.")
-            return
-
         city_name = message.text
         await message.answer(f"Город сохранён: {city_name}")
 
     else:
         # Invalid input
-        await message.answer("Пожалуйста, используйте кнопки ниже или введите название города.")
+        await message.answer("Пожалуйста, используйте кнопки ниже или введите корректное название города.")
         return
 
     # Update state data
@@ -252,6 +248,10 @@ async def process_confirmation(message: types.Message, state: FSMContext):
         # После сохранения можно показать меню / профиль пользователю,
         # например, отправить приветствие или сразу вызвать /start.
         # (В данном случае мы просто очистили состояние и убрали клавиатуру.)
+    elif message.text == "🔄 Заполнить заново":
+        await message.answer("Начнём заполнение анкеты с начала. Как тебя зовут?", reply_markup=build_cancel_keyboard())
+        await state.set_state(ProfileStates.NAME)
+
 
 
 
