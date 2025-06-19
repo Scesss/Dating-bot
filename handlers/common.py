@@ -5,28 +5,21 @@ from states.profile_states import ProfileStates
 from keyboards.builders import build_cancel_keyboard
 from keyboards.builders import build_menu_keyboard
 from database import db
+from aiogram import Bot
 import logging
+
 
 logger = logging.getLogger(__name__)
 
 # Create router for common commands
 common_router = Router()
 
-# @common_router.message(Command("start"))
-# async def cmd_start(message: types.Message, state: FSMContext):
-#     await state.clear()
-#
-#     logger.info(f"Start command from {message.from_user.id}")
-#     await message.answer("🌟 Это твоя анкета:",
-#                          reply_markup=build_menu_keyboard())
-#     await state.set_state(ProfileStates.MENU)
+
 
 async def show_profile_info(message: types.Message, profile: dict, for_self: bool = True):
     """Отправляет сообщение с информацией анкеты.
     profile – словарь с данными профиля из БД."""
     # Собираем текст
-
-
 
     caption = (
         ( "🌟 Это твоя анкета:\n\n" if for_self else "" ) +
@@ -49,7 +42,12 @@ async def show_profile_info(message: types.Message, profile: dict, for_self: boo
 
 
 @common_router.message(Command("start"))
-async def cmd_start(message: types.Message, state: FSMContext):
+async def cmd_start(message: types.Message, state: FSMContext, bot: Bot):
+    member = await bot.get_chat_member(chat_id="@CafeDateInc", user_id=message.from_user.id)
+    if member.status in ("left", "kicked"):
+        await message.answer("❗️Для работы бота подпишитесь на наш канал: @CafeDateInc")
+        return
+
     await state.clear()
     user_id = message.from_user.id
     logger.info(f"Start command from {user_id}")
