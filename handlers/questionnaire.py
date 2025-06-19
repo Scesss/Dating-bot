@@ -1,6 +1,5 @@
-from aiogram import Router, types, F
+from aiogram import Router, types, F, Bot
 from aiogram.fsm.context import FSMContext
-
 from handlers.common import cmd_start
 from states.profile_states import ProfileStates
 from keyboards.builders import *
@@ -18,15 +17,15 @@ router = Router()
 
 
 @router.message(StateFilter(ProfileStates.NAME))
-async def process_name(message: types.Message, state: FSMContext):
+async def process_name(message: types.Message, state: FSMContext, bot : Bot):
     if message.text == "🚫 Отмена":
-        await cmd_start(message, state)
+        await cmd_start(message, state, bot)
         return
 
     if len(message.text) < 2:
-        return await message.answer("Имя не может быть короче двух букв")
+        return await message.answer("❌ Имя не может быть короче двух букв")
     await state.update_data(name=message.text)
-    await message.answer("Сколько тебе лет?", reply_markup=build_back_keyboard())
+    await message.answer("❔ Сколько тебе лет?", reply_markup=build_back_keyboard())
     await state.set_state(ProfileStates.AGE)
 
 
@@ -38,15 +37,15 @@ async def process_age(message: types.Message, state: FSMContext):
         return
 
     if not message.text.isdigit():
-        return await message.answer("Возраст должен быть целым числом.")
+        return await message.answer("❌ Возраст должен быть целым числом.")
 
     age = int(message.text)
     if age < 14 or age > 100:
-        return await message.answer("Введите корректный возраст.")
+        return await message.answer("❌ Введите корректный возраст.")
 
     await state.update_data(age=age)
     await message.answer(
-        "Твой пол?",
+        "👤 Твой пол?",
         reply_markup=build_gender_keyboard()
     )
     await state.set_state(ProfileStates.GENDER)
@@ -61,11 +60,11 @@ async def process_gender(message: types.Message, state: FSMContext):
 
     valid_genders = ["Парень", "Девушка"]
     if message.text not in valid_genders:
-        return await message.answer("Нет такого варианта ответа")
+        return await message.answer("❌ Нет такого варианта ответа")
 
     await state.update_data(gender=message.text)
     await message.answer(
-        "Кто тебе интересен?",
+        "💕 Кто тебе интересен?",
         reply_markup=build_preference_keyboard()
     )
     await state.set_state(ProfileStates.LOOKING_FOR)
@@ -80,11 +79,11 @@ async def process_preference(message: types.Message, state: FSMContext):
 
     valid_options = ["Девушки", "Парни"]
     if message.text not in valid_options:
-        return await message.answer("Нет такого варианта ответа")
+        return await message.answer("❌ Нет такого варианта ответа")
 
     await state.update_data(looking_for=message.text)
     await message.answer(
-        "Расскажи о себе:",
+        "✍️ Расскажи о себе:",
         reply_markup=build_back_keyboard()
     )
     await state.set_state(ProfileStates.BIO)
@@ -101,10 +100,10 @@ async def process_bio(message: types.Message, state: FSMContext):
     #     return await message.answer("Your bio should be at least 50 characters. Try again:")
     #
     if len(message.text) > 1000:
-        return await message.answer("Ваше сообщение не должно быть длиннее 1000 символов.")
+        return await message.answer("❌ Ваше сообщение не должно быть длиннее 1000 символов.")
 
     await state.update_data(bio=message.text)
-    await message.answer("Твое фото?", reply_markup=build_back_keyboard())
+    await message.answer("📷 Твое фото?", reply_markup=build_back_keyboard())
     await state.set_state(ProfileStates.PHOTO)
 
 
@@ -121,7 +120,7 @@ async def process_photo(message: types.Message, state: FSMContext):
     await state.update_data(photo_id=photo.file_id)
 
     await message.answer(
-        "Отправь мне свою геопозицию или введи название города:",
+        "📍 Из какого ты города?",
         reply_markup=build_location_keyboard()
     )
     await state.set_state(ProfileStates.LOCATION)
@@ -130,7 +129,7 @@ async def process_photo(message: types.Message, state: FSMContext):
 # Handle invalid photo
 @router.message(StateFilter(ProfileStates.PHOTO))
 async def process_photo_invalid(message: types.Message):
-    await message.answer("Требуется фото.")
+    await message.answer("❌ Требуется фото.")
 
 # @router.message(ProfileStates.LOCATION,F.text == "✏️ Ввести город вручную")
 # async def request_city_input(message: types.Message):
@@ -155,21 +154,21 @@ async def process_location(message: types.Message, state: FSMContext):
         lon = message.location.longitude
         location_data = f"{lat},{lon}"
         city_name = await get_city_name(lat, lon)
-        await message.answer(f"📍 Местоположение получено: {city_name}")
+        await message.answer(f"✅ Местоположение получено: {city_name}")
 
     # Handle skip location
     elif message.text and message.text == "🚫 Пропустить":
-        await message.answer("Определение местоположения пропущено.")
+        await message.answer("Определение местоположения пропущено, рекомендации могут быть менее точными")
 
     # Handle text input for city name
     elif message.text and await is_valid_city(message.text):
         # Simple validation
         city_name = message.text
-        await message.answer(f"Город сохранён: {city_name}")
+        await message.answer(f"✅ Город сохранён: {city_name}")
 
     else:
         # Invalid input
-        await message.answer("Пожалуйста, используйте кнопки ниже или введите корректное название города.")
+        await message.answer("❌ Пожалуйста, используйте кнопки ниже или введите корректное название города.")
         return
 
     # Update state data
@@ -249,7 +248,7 @@ async def process_confirmation(message: types.Message, state: FSMContext):
         # например, отправить приветствие или сразу вызвать /start.
         # (В данном случае мы просто очистили состояние и убрали клавиатуру.)
     elif message.text == "🔄 Заполнить заново":
-        await message.answer("Начнём заполнение анкеты с начала. Как тебя зовут?", reply_markup=build_cancel_keyboard())
+        await message.answer(" Начнём заполнение анкеты с начала. Как тебя зовут?", reply_markup=build_cancel_keyboard())
         await state.set_state(ProfileStates.NAME)
 
 

@@ -7,10 +7,9 @@ from aiogram.client.default import DefaultBotProperties
 from config import Config
 from handlers import main_router
 from aiogram.fsm.storage.memory import MemoryStorage
-# from database.db import init_db
 
-from states import profile_states
-# Import your main router
+
+
 
 # Configure logging
 logging.basicConfig(
@@ -46,7 +45,7 @@ async def main():
         dp.include_router(main_router)
 
         # Start polling
-        logger.info("Starting polling with state management...")
+        logger.info("⏳ Starting polling with state management...")
         # logger.info(f"States loaded: {profile_states.__all_states__}")
         await dp.start_polling(bot)
 

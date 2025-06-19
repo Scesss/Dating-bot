@@ -1,6 +1,5 @@
 from aiogram import Router, types, F
 from aiogram.fsm.context import FSMContext
-from handlers.common import cmd_profile
 from states.profile_states import ProfileStates
 from keyboards.builders import *
 from aiogram.filters import StateFilter
@@ -24,7 +23,7 @@ async def process_choose(message: types.Message, state: FSMContext):
         # Переходим в режим редактирования профиля
         await state.set_state(ProfileStates.EDIT_PROFILE)
         # Убираем клавиатуру меню, чтобы не мешала (опционально)
-        await message.answer(" Открываем твою анкету...",
+        await message.answer("⏳ Открываем твою анкету...",
                          reply_markup=types.ReplyKeyboardRemove())
         # Получаем профиль из базы
         profile = db.get_profile(message.from_user.id)
@@ -47,7 +46,7 @@ async def process_choose(message: types.Message, state: FSMContext):
         # Переходим в режим просмотра чужих анкет
         await state.set_state(ProfileStates.BROWSING)
         # Убираем меню-клавиатуру
-        await message.answer(" Поиск анкет...",
+        await message.answer("⏳ Поиск анкет...",
                              reply_markup=types.ReplyKeyboardRemove())
         # Получаем собственный профиль (для критериев поиска)
         my_profile = db.get_profile(message.from_user.id)
@@ -162,6 +161,6 @@ async def on_exit_browse(callback: types.CallbackQuery, state: FSMContext):
     # Выйти из режима просмотра
     await callback.message.delete()  # удаляем последнюю показанную анкету
     await state.set_state(ProfileStates.MENU)
-    data = await state.get_data()
-    gender = data["gender"]
-    await callback.message.answer("Вы вернулись в меню.", reply_markup=build_menu_keyboard(gender))
+    user_id = callback.from_user.id
+    my_profile = db.get_profile(user_id)
+    await callback.message.answer("📖 Вы вернулись в меню.", reply_markup=build_menu_keyboard(my_profile['gender']))

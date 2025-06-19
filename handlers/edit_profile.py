@@ -46,10 +46,8 @@ async def on_cancel_edit(callback: types.CallbackQuery, state: FSMContext):
     # Если вдруг профиль не найден, можно подставить дефолт
     if gender is None:
         gender = "Парень"  # или любой другой ваш дефолт
-    await callback.message.answer("Вы вернулись в главное меню.", reply_markup=build_menu_keyboard(gender))
+    await callback.message.answer("📖 Вы вернулись в главное меню.", reply_markup=build_menu_keyboard(gender))
     await callback.answer()
-
-
 
 @router.callback_query(F.data == "refill_profile", StateFilter(ProfileStates.EDIT_PROFILE))
 async def on_refill_profile(callback: types.CallbackQuery, state: FSMContext):
@@ -57,11 +55,9 @@ async def on_refill_profile(callback: types.CallbackQuery, state: FSMContext):
     await callback.message.delete()
     # Очищаем состояние и запускаем регистрацию заново
     await state.clear()
-    await callback.message.answer("Начнём заполнение анкеты с начала. Как тебя зовут?", reply_markup=build_cancel_keyboard())
+    await callback.message.answer("✍️ Начнём заполнение анкеты с начала. Как тебя зовут?", reply_markup=build_cancel_keyboard())
     await state.set_state(ProfileStates.NAME)
     await callback.answer()
-
-
 
 @router.callback_query(F.data == "edit_params", StateFilter(ProfileStates.EDIT_PROFILE))
 async def on_edit_params(callback: types.CallbackQuery):
@@ -116,7 +112,7 @@ async def on_back_to_edit_menu(callback: types.CallbackQuery):
 @router.callback_query(F.data == "edit_age", StateFilter(ProfileStates.EDIT_PROFILE))
 async def on_edit_age(callback: types.CallbackQuery, state: FSMContext):
     await callback.message.edit_reply_markup(reply_markup=None)
-    await callback.message.answer("Введите новый возраст:", reply_markup=build_cancel_keyboard())
+    await callback.message.answer("✍️ Введите новый возраст:", reply_markup=build_cancel_keyboard())
     await state.set_state(ProfileStates.EDIT_AGE)
     await callback.answer()
 
@@ -140,7 +136,7 @@ async def process_edit_age(message: types.Message, state: FSMContext):
         await message.answer("Укажите корректный возраст (14-100).")
         return
     db.update_profile_field(message.from_user.id, 'age', age)
-    await message.answer("Возраст обновлен.", reply_markup=types.ReplyKeyboardRemove())
+    await message.answer("✅ Возраст обновлен.", reply_markup=types.ReplyKeyboardRemove())
     profile = db.get_profile(message.from_user.id)
     if profile:
         await message.answer_photo(profile['photo_id'],
@@ -152,7 +148,7 @@ async def process_edit_age(message: types.Message, state: FSMContext):
 @router.callback_query(F.data == "edit_bio", StateFilter(ProfileStates.EDIT_PROFILE))
 async def on_edit_bio(callback: types.CallbackQuery, state: FSMContext):
     await callback.message.edit_reply_markup(reply_markup=None)
-    await callback.message.answer("Напишите новый текст 'О себе':", reply_markup=build_cancel_keyboard())
+    await callback.message.answer("✍️ Напишите новый текст 'О себе':", reply_markup=build_cancel_keyboard())
     await state.set_state(ProfileStates.EDIT_BIO)
     await callback.answer()
 
@@ -172,7 +168,7 @@ async def process_edit_bio(message: types.Message, state: FSMContext):
         await message.answer("Слишком длинный текст. Максимум 1000 символов.")
         return
     db.update_profile_field(message.from_user.id, 'bio', bio_text)
-    await message.answer("Описание обновлено.", reply_markup=types.ReplyKeyboardRemove())
+    await message.answer("✅ Описание обновлено.", reply_markup=types.ReplyKeyboardRemove())
     profile = db.get_profile(message.from_user.id)
     if profile:
         await message.answer_photo(profile['photo_id'],
@@ -185,7 +181,7 @@ async def process_edit_bio(message: types.Message, state: FSMContext):
 @router.callback_query(F.data == "edit_photo", StateFilter(ProfileStates.EDIT_PROFILE))
 async def on_edit_photo(callback: types.CallbackQuery, state: FSMContext):
     await callback.message.edit_reply_markup(reply_markup=None)
-    await callback.message.answer("Отправьте новое фото профиля:", reply_markup=build_cancel_keyboard())
+    await callback.message.answer("📷 Отправьте новое фото профиля:", reply_markup=build_cancel_keyboard())
     await state.set_state(ProfileStates.EDIT_PHOTO)
     await callback.answer()
 
@@ -195,7 +191,7 @@ async def process_edit_photo(message: types.Message, state: FSMContext):
     photo = message.photo[-1]
     new_file_id = photo.file_id
     db.update_profile_field(message.from_user.id, 'photo_id', new_file_id)
-    await message.answer("Фото обновлено.", reply_markup=types.ReplyKeyboardRemove())
+    await message.answer("✅ Фото обновлено.", reply_markup=types.ReplyKeyboardRemove())
     profile = db.get_profile(message.from_user.id)
     if profile:
         await message.answer_photo(profile['photo_id'],
