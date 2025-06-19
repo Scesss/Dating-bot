@@ -129,11 +129,11 @@ async def process_edit_age(message: types.Message, state: FSMContext):
         await state.set_state(ProfileStates.EDIT_PROFILE)
         return
     if not message.text.isdigit():
-        await message.answer("Возраст должен быть числом. Попробуйте снова:")
+        await message.answer("❌ Возраст должен быть числом. Попробуйте снова:")
         return
     age = int(message.text)
     if age < 14 or age > 100:
-        await message.answer("Укажите корректный возраст (14-100).")
+        await message.answer("❌ Укажите корректный возраст (14-100).")
         return
     db.update_profile_field(message.from_user.id, 'age', age)
     await message.answer("✅ Возраст обновлен.", reply_markup=types.ReplyKeyboardRemove())
@@ -165,7 +165,7 @@ async def process_edit_bio(message: types.Message, state: FSMContext):
         return
     bio_text = message.text.strip()
     if len(bio_text) > 1000:
-        await message.answer("Слишком длинный текст. Максимум 1000 символов.")
+        await message.answer("❌ Слишком длинный текст. Максимум 1000 символов.")
         return
     db.update_profile_field(message.from_user.id, 'bio', bio_text)
     await message.answer("✅ Описание обновлено.", reply_markup=types.ReplyKeyboardRemove())
@@ -181,7 +181,7 @@ async def process_edit_bio(message: types.Message, state: FSMContext):
 @router.callback_query(F.data == "edit_photo", StateFilter(ProfileStates.EDIT_PROFILE))
 async def on_edit_photo(callback: types.CallbackQuery, state: FSMContext):
     await callback.message.edit_reply_markup(reply_markup=None)
-    await callback.message.answer("📷 Отправьте новое фото профиля:", reply_markup=build_cancel_keyboard())
+    await callback.message.answer("📸 Отправьте новое фото профиля:", reply_markup=build_cancel_keyboard())
     await state.set_state(ProfileStates.EDIT_PHOTO)
     await callback.answer()
 

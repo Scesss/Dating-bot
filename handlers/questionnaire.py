@@ -103,7 +103,7 @@ async def process_bio(message: types.Message, state: FSMContext):
         return await message.answer("❌ Ваше сообщение не должно быть длиннее 1000 символов.")
 
     await state.update_data(bio=message.text)
-    await message.answer("📷 Твое фото?", reply_markup=build_back_keyboard())
+    await message.answer("📸 Твое фото?", reply_markup=build_back_keyboard())
     await state.set_state(ProfileStates.PHOTO)
 
 
@@ -158,7 +158,7 @@ async def process_location(message: types.Message, state: FSMContext):
 
     # Handle skip location
     elif message.text and message.text == "🚫 Пропустить":
-        await message.answer("Определение местоположения пропущено, рекомендации могут быть менее точными")
+        await message.answer("Определение местоположения пропущено, рекомендации могут быть менее точными...")
 
     # Handle text input for city name
     elif message.text and await is_valid_city(message.text):
