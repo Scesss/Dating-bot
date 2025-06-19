@@ -5,6 +5,7 @@ from keyboards.builders import get_edit_menu_kb, get_params_menu_kb
 from states.profile_states import ProfileStates
 from aiogram.filters import StateFilter
 from database import db
+from database.db import get_profile
 from keyboards.builders import build_menu_keyboard, build_cancel_keyboard
 
 
@@ -40,8 +41,11 @@ async def on_cancel_edit(callback: types.CallbackQuery, state: FSMContext):
     # Отмена редактирования: удалить сообщение анкеты и вернуть в меню
     await callback.message.delete()
     await state.set_state(ProfileStates.MENU)
-    data = await state.get_data()
-    gender = data["gender"]
+    profile = get_profile(callback.from_user.id)
+    gender = profile.get("gender") if profile else None
+    # Если вдруг профиль не найден, можно подставить дефолт
+    if gender is None:
+        gender = "Парень"  # или любой другой ваш дефолт
     await callback.message.answer("Вы вернулись в главное меню.", reply_markup=build_menu_keyboard(gender))
     await callback.answer()
 
