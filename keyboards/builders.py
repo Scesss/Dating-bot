@@ -119,9 +119,18 @@ def build_cancel_keyboard():
         one_time_keyboard=True
     )
 
+def build_restart_keyboard():
+    return ReplyKeyboardMarkup(
+        keyboard=[[KeyboardButton(text="🚫 Отмена")],
+                  [KeyboardButton(text="✅ Вперед")]
+                  ],
+        resize_keyboard=True,
+        one_time_keyboard=True
+    )
+
 def get_browse_keyboard(target_id: int):
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="❤", callback_data=f"like_{target_id}"),
-        InlineKeyboardButton(text=" ",callback_data=f"dislike_{target_id}")],
+        [InlineKeyboardButton(text="💕", callback_data=f"like_{target_id}"),
+        InlineKeyboardButton(text="👎",callback_data=f"dislike_{target_id}")],
      [InlineKeyboardButton(text="◀ Завершить просмотр", callback_data="exit_browse")]
 ])

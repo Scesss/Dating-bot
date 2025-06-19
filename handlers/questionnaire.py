@@ -251,8 +251,18 @@ async def process_confirmation(message: types.Message, state: FSMContext):
         await message.answer(" Начнём заполнение анкеты с начала. Как тебя зовут?", reply_markup=build_cancel_keyboard())
         await state.set_state(ProfileStates.NAME)
 
-
-
+@router.message(ProfileStates.RESTART)
+async def process_restart(message: types.Message, state: FSMContext):
+    data = await state.get_data()
+    if message.text == "✅ Вперед":
+        await message.answer("❔ Начнём заполнение анкеты. Как тебя зовут?",
+                             reply_markup=build_cancel_keyboard())
+        await state.set_state(ProfileStates.NAME)
+    else:
+        profile = db.get_profile(message.from_user.id)
+        gender = profile.get("gender")
+        await message.answer("⏳ Возвращаемся в меню...",
+                             reply_markup=build_menu_keyboard(gender))
 
 
 

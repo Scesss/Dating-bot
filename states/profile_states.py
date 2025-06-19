@@ -16,3 +16,4 @@ class ProfileStates(StatesGroup):
     EDIT_GENDER = State()
     EDIT_BIO = State()
     EDIT_PHOTO = State()
+    RESTART = State()

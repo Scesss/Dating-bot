@@ -1,8 +1,7 @@
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from states.profile_states import ProfileStates
-from keyboards.builders import build_cancel_keyboard
-from keyboards.builders import build_menu_keyboard
+from keyboards.builders import *
 from database import db
 from aiogram import Bot
 import logging
@@ -55,6 +54,33 @@ async def cmd_start(message: types.Message, state: FSMContext, bot : Bot):
 
 
     if profile:
+        await message.answer("📄 Хотите начать все с чистого листа?", reply_markup=build_restart_keyboard())
+        await state.set_state(ProfileStates.RESTART)
+        # # Если профиль есть – показываем его
+        # gender = profile["gender"] if profile else "Парень"
+        # await message.answer("⏳ Открываем анкету...", reply_markup=build_menu_keyboard(gender))
+        # # Устанавливаем состояние меню (пользователь уже зарегистрирован)
+        # await state.set_state(ProfileStates.MENU)
+        # # Отправляем данные анкеты пользователю (см. следующий раздел о формате вывода)
+        # await show_profile_info(message, profile)
+    else:
+        # Если профиля нет – запускаем регистрацию
+        await state.set_state(ProfileStates.NAME)
+        await message.answer("Как тебя зовут?", reply_markup=build_cancel_keyboard())
+
+@common_router.message(Command("profile"))
+async def cmd_profile(message: types.Message, state: FSMContext, bot : Bot):
+    member = await bot.get_chat_member(chat_id="@CafeDateInc", user_id=message.from_user.id)
+    if member.status in ("left", "kicked"):
+        await message.answer("❗️Для работы бота подпишитесь на наш канал: @CafeDateInc")
+        return
+
+    await state.clear()
+    user_id = message.from_user.id
+    logger.info(f"Start command from {user_id}")
+    profile = db.get_profile(user_id)
+
+    if profile:
         # Если профиль есть – показываем его
         gender = profile["gender"] if profile else "Парень"
         await message.answer("⏳ Открываем анкету...", reply_markup=build_menu_keyboard(gender))
@@ -66,9 +92,5 @@ async def cmd_start(message: types.Message, state: FSMContext, bot : Bot):
         # Если профиля нет – запускаем регистрацию
         await state.set_state(ProfileStates.NAME)
         await message.answer("Как тебя зовут?", reply_markup=build_cancel_keyboard())
-
-@common_router.message(Command("profile"))
-async def cmd_profile(message: types.Message, state: FSMContext, bot : Bot):
-    await cmd_start(message, state, bot)
 # Export the router
 __all__ = ['common_router']

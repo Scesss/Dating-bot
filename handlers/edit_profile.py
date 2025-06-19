@@ -55,7 +55,7 @@ async def on_refill_profile(callback: types.CallbackQuery, state: FSMContext):
     await callback.message.delete()
     # Очищаем состояние и запускаем регистрацию заново
     await state.clear()
-    await callback.message.answer("✍️ Начнём заполнение анкеты с начала. Как тебя зовут?", reply_markup=build_cancel_keyboard())
+    await callback.message.answer("✍️ Начнём заполнение анкеты. Как тебя зовут?", reply_markup=build_cancel_keyboard())
     await state.set_state(ProfileStates.NAME)
     await callback.answer()
 
