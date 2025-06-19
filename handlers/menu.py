@@ -20,7 +20,7 @@ async def process_choose(message: types.Message, state: FSMContext):
     if message.text not in valid_answer:
         return await message.answer("Нет такого варианта ответа")
 
-    elif message.text == "👨🏼 Моя Анкета" or "👩🏻‍🦰 Моя Анкета":
+    elif message.text == "👨🏼 Моя Анкета" or message.text == "👩🏻‍🦰 Моя Анкета":
         # Переходим в режим редактирования профиля
         await state.set_state(ProfileStates.EDIT_PROFILE)
         # Убираем клавиатуру меню, чтобы не мешала (опционально)
@@ -56,6 +56,7 @@ async def process_choose(message: types.Message, state: FSMContext):
             await state.clear()
             return
         # Ищем первую подходящую анкету
+        logger.info("get_next_profile(simple) → %r", my_profile)
         result = db.get_next_profile(
             current_user_id=message.from_user.id,
             current_gender=my_profile['gender'],
@@ -80,11 +81,10 @@ async def process_choose(message: types.Message, state: FSMContext):
             except Exception as e:
                 logger.error(f"Failed to send profile {result['user_id']}: {e}")
         else:
-            await message.answer("Сейчас нет анкет, соответствующих вашим параметрам.")
+            profile = db.get_profile(message.from_user.id)
+            gender = profile['gender']
+            await message.answer("Сейчас нет анкет, соответствующих вашим параметрам.", reply_markup=build_menu_keyboard(gender))
             await state.set_state(ProfileStates.MENU)
-            data = await state.get_data()
-            gender = data["gender"]
-            await build_menu_keyboard(gender)
     elif message.text == "🌙 Сон":
         return await message.answer("Пока такой функции нет")
     elif message.text == "👑 Топ":
@@ -132,7 +132,7 @@ async def show_next_profile(callback: types.CallbackQuery):
 
 
 @router.callback_query(StateFilter(ProfileStates.BROWSING), F.data.startswith("like_"))
-async def on_like(callback: types.CallbackQuery, state: FSMContext):
+async def on_like(callback: types.CallbackQuery, state: FSMContext, bot : Bot):
     target_id = int(callback.data.split("_")[1])
     current_user = callback.from_user.id
     db.add_like(current_user, target_id)
@@ -145,7 +145,6 @@ async def on_like(callback: types.CallbackQuery, state: FSMContext):
         await callback.message.answer(f"❤️ У вас взаимная симпатия с {name}!")
         # Уведомление второму пользователю о совпадении
         try:
-            bot = Bot.get_current()
             user_name = (db.get_profile(current_user) or {}).get('name', 'вам')
             await bot.send_message(target_id, f"❤️ У вас взаимная симпатия с {user_name}!")
         except Exception as e:

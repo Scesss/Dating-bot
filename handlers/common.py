@@ -57,7 +57,7 @@ async def cmd_start(message: types.Message, state: FSMContext, bot : Bot):
     if profile:
         # Если профиль есть – показываем его
         gender = profile["gender"] if profile else "Парень"
-        await message.answer("🌟 Это твоя анкета:", reply_markup=build_menu_keyboard(gender))
+        await message.answer("🌟 Открываем анкету...", reply_markup=build_menu_keyboard(gender))
         # Устанавливаем состояние меню (пользователь уже зарегистрирован)
         await state.set_state(ProfileStates.MENU)
         # Отправляем данные анкеты пользователю (см. следующий раздел о формате вывода)
@@ -70,6 +70,5 @@ async def cmd_start(message: types.Message, state: FSMContext, bot : Bot):
 @common_router.message(Command("profile"))
 async def cmd_profile(message: types.Message, state: FSMContext, bot : Bot):
     await cmd_start(message, state, bot)
-
 # Export the router
 __all__ = ['common_router']
