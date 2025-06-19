@@ -50,16 +50,18 @@ def get_params_menu_kb():
 
     return builder.as_markup()
 
-def build_menu_keyboard():
+def build_menu_keyboard(user_gender: str):
+    profile_label = "👨🏼 Моя Анкета" if user_gender == "Парень" else "👩 Моя Анкета"
     return ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="Смотреть Анкеты")],
-            [KeyboardButton(text="Моя Анкета")],
-            [KeyboardButton(text="Топ"), KeyboardButton(text="Сон")]
+            [KeyboardButton(text="🔍 Смотреть Анкеты")],
+            [KeyboardButton(text=profile_label)],
+            [KeyboardButton(text="👑 Топ"), KeyboardButton(text="🌙 Сон")]
         ],
         resize_keyboard=True,
         one_time_keyboard=True
     )
+
 
 def build_gender_keyboard():
     return ReplyKeyboardMarkup(

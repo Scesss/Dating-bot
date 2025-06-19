@@ -40,7 +40,9 @@ async def on_cancel_edit(callback: types.CallbackQuery, state: FSMContext):
     # Отмена редактирования: удалить сообщение анкеты и вернуть в меню
     await callback.message.delete()
     await state.set_state(ProfileStates.MENU)
-    await callback.message.answer("Вы вернулись в главное меню.", reply_markup=build_menu_keyboard())
+    data = await state.get_data()
+    gender = data["gender"]
+    await callback.message.answer("Вы вернулись в главное меню.", reply_markup=build_menu_keyboard(gender))
     await callback.answer()
 
 

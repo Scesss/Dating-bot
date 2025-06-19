@@ -241,7 +241,7 @@ async def process_confirmation(message: types.Message, state: FSMContext):
         #     reply_markup=types.ReplyKeyboardRemove()
         # )
         # await state.clear()
-        await message.answer("Профиль сохранён успешно! 🎉", reply_markup=build_menu_keyboard())
+        await message.answer("Профиль сохранён успешно! 🎉", reply_markup=build_menu_keyboard(data["gender"]))
         await state.set_state(ProfileStates.MENU)
 
 

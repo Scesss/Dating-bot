@@ -16,11 +16,11 @@ router = Router()
 
 @router.message(StateFilter(ProfileStates.MENU))
 async def process_choose(message: types.Message, state: FSMContext):
-    valid_answer = ["Смотреть Анкеты", "Моя Анкета", "Топ", "Сон"]
+    valid_answer = ["🔍 Смотреть Анкеты", "👨🏼 Моя Анкета", "👑 Топ", "🌙 Сон", "👩🏻‍🦰 Моя Анкета"]
     if message.text not in valid_answer:
         return await message.answer("Нет такого варианта ответа")
 
-    elif message.text == "Моя Анкета":
+    elif message.text == "👨🏼 Моя Анкета" or "👩🏻‍🦰 Моя Анкета":
         # Переходим в режим редактирования профиля
         await state.set_state(ProfileStates.EDIT_PROFILE)
         # Убираем клавиатуру меню, чтобы не мешала (опционально)
@@ -43,7 +43,7 @@ async def process_choose(message: types.Message, state: FSMContext):
                 await message.answer(caption, reply_markup=get_edit_menu_kb())
         else:
             await message.answer("У вас ещё нет анкеты. Введите /start для регистрации.")
-    elif message.text == "Смотреть Анкеты":
+    elif message.text == "🔍 Смотреть Анкеты":
         # Переходим в режим просмотра чужих анкет
         await state.set_state(ProfileStates.BROWSING)
         # Убираем меню-клавиатуру
@@ -82,10 +82,12 @@ async def process_choose(message: types.Message, state: FSMContext):
         else:
             await message.answer("Сейчас нет анкет, соответствующих вашим параметрам.")
             await state.set_state(ProfileStates.MENU)
-            await message.answer(" Возвращение в меню.", reply_markup=build_menu_keyboard())
-    elif message.text == "Сон":
+            data = await state.get_data()
+            gender = data["gender"]
+            await build_menu_keyboard(gender)
+    elif message.text == "🌙 Сон":
         return await message.answer("Пока такой функции нет")
-    elif message.text == "Топ":
+    elif message.text == "👑 Топ":
         return await message.answer("Пока такой функции нет")
 
 async def show_next_profile(callback: types.CallbackQuery):
@@ -123,7 +125,7 @@ async def show_next_profile(callback: types.CallbackQuery):
             logger.error(f"Failed to send profile {result['user_id']}: {e}")
     else:
         # Нет больше анкет
-        await callback.message.answer("Анкет больше не найдено.", reply_markup=build_menu_keyboard())
+        await callback.message.answer("Анкет больше не найдено.", reply_markup=build_menu_keyboard(my_profile['gender']))
         # Выходим из режима просмотра
         await callback.answer()  # закрываем иконку загрузки на кнопке
         await callback.bot.delete_state(callback.from_user.id)  # очистить FSM state
@@ -161,4 +163,6 @@ async def on_exit_browse(callback: types.CallbackQuery, state: FSMContext):
     # Выйти из режима просмотра
     await callback.message.delete()  # удаляем последнюю показанную анкету
     await state.set_state(ProfileStates.MENU)
-    await callback.message.answer("Вы вернулись в меню.", reply_markup=build_menu_keyboard())
+    data = await state.get_data()
+    gender = data["gender"]
+    await callback.message.answer("Вы вернулись в меню.", reply_markup=build_menu_keyboard(gender))

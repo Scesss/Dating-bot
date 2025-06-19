@@ -1,4 +1,3 @@
-from aiogram import Router, types
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from states.profile_states import ProfileStates
@@ -7,6 +6,7 @@ from keyboards.builders import build_menu_keyboard
 from database import db
 from aiogram import Bot
 import logging
+from aiogram import Bot, Router, types
 
 
 logger = logging.getLogger(__name__)
@@ -42,7 +42,7 @@ async def show_profile_info(message: types.Message, profile: dict, for_self: boo
 
 
 @common_router.message(Command("start"))
-async def cmd_start(message: types.Message, state: FSMContext, bot: Bot):
+async def cmd_start(message: types.Message, state: FSMContext, bot : Bot):
     member = await bot.get_chat_member(chat_id="@CafeDateInc", user_id=message.from_user.id)
     if member.status in ("left", "kicked"):
         await message.answer("❗️Для работы бота подпишитесь на наш канал: @CafeDateInc")
@@ -56,7 +56,8 @@ async def cmd_start(message: types.Message, state: FSMContext, bot: Bot):
 
     if profile:
         # Если профиль есть – показываем его
-        await message.answer("🌟 Это твоя анкета:", reply_markup=build_menu_keyboard())
+        gender = profile["gender"] if profile else "Парень"
+        await message.answer("🌟 Это твоя анкета:", reply_markup=build_menu_keyboard(gender))
         # Устанавливаем состояние меню (пользователь уже зарегистрирован)
         await state.set_state(ProfileStates.MENU)
         # Отправляем данные анкеты пользователю (см. следующий раздел о формате вывода)
@@ -67,8 +68,8 @@ async def cmd_start(message: types.Message, state: FSMContext, bot: Bot):
         await message.answer("Как тебя зовут?", reply_markup=build_cancel_keyboard())
 
 @common_router.message(Command("profile"))
-async def cmd_profile(message: types.Message, state: FSMContext):
-    await cmd_start(message, state)
+async def cmd_profile(message: types.Message, state: FSMContext, bot : Bot):
+    await cmd_start(message, state, bot)
 
 # Export the router
 __all__ = ['common_router']
