@@ -85,101 +85,6 @@ def user_liked(user_id, target_id):
     cursor.execute("SELECT 1 FROM likes WHERE user_id = ? AND liked_user_id = ?", (user_id, target_id))
     return cursor.fetchone() is not None
 
-# def get_next_profile(
-#     current_user_id: int,
-#     current_gender: str,
-#     current_preference: str,
-#     current_city: str = None,
-#     current_lat: float = None,
-#     current_lon: float = None,
-# ) -> dict | None:
-#     """Найти следующую анкету:
-#        – пол кандидата = ваше предпочтение
-#        – предпочтение кандидата = ваш пол
-#        – не показывать уже лайкнутых
-#        – сначала анкеты из вашего города
-#        – если есть координаты, считаем расстояние и сортируем по нему
-#     """
-#
-#     # 1) Собираем список лайкнутых, чтобы их исключить
-#     cursor.execute(
-#     "SELECT liked_user_id FROM likes WHERE user_id=?",
-#     (current_user_id,)
-# )
-#     # liked_rows = cursor.fetchall()
-#     # Если курсор возвращает dict-подобные строки:
-#     # liked = { row['liked_user_id'] for row in liked_rows }
-#     # Если вдруг остаются кортежи, можно на всякий случай так:
-#     # liked = { row[0] if isinstance(row, (list, tuple)) else row['liked_user_id'] for row in liked_rows }
-#
-#     # logger.info("LIKED rows raw: %r", liked_rows)
-#     # logger.info("LIKED set   : %r", liked)
-#
-#     #
-#     # cursor.execute("""SELECT COUNT(*) FROM profiles
-#     #     WHERE user_id != 1234
-#     #     AND gender = 'Девушка'
-#     #     AND looking_for = 'Парни'""")
-#     # logging.info(cursor.fetchone())
-#     # 2) Выбираем всех подходящих по полу и предпочтению
-#     cursor.execute(
-#         """
-#         SELECT user_id,name,age,gender,looking_for,bio,photo_id,city,lat,lon
-#           FROM profiles
-#          WHERE user_id != ?
-#            AND gender = ?
-#            AND looking_for = ?
-#         """,
-#         (current_user_id, current_preference, current_gender)
-#     )
-#     cols = [d[0] for d in cursor.description]
-#     candidates = [
-#         dict(zip(cols, row))
-#         for row in cursor.fetchall()
-#         # if row[0] not in liked
-#     ]
-#
-#     if not candidates:
-#         return None
-#
-#     # 3) Разбиваем на тех, кто из вашего города, и остальных
-#     same_city = []
-#     others    = []
-#     for p in candidates:
-#         if current_city and p.get('city') == current_city:
-#             same_city.append(p)
-#         else:
-#             others.append(p)
-#
-#     # 4) Хаверсин для расстояния
-#     def haversine(lat1, lon1, lat2, lon2):
-#         phi1, phi2 = math.radians(lat1), math.radians(lat2)
-#         dphi = math.radians(lat2 - lat1)
-#         dlon = math.radians(lon2 - lon1)
-#         a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlon/2)**2
-#         return 2 * 6371 * math.atan2(math.sqrt(a), math.sqrt(1-a))
-#
-#     # 5) Подсчитываем distance_km, если есть обе пары координат
-#     for p in same_city + others:
-#         lat2, lon2 = p.get('lat'), p.get('lon')
-#         if (
-#             current_lat is not None and current_lon is not None
-#             and lat2 is not None and lon2 is not None
-#         ):
-#             p['distance_km'] = round(
-#                 haversine(current_lat, current_lon, lat2, lon2), 2
-#             )
-#         else:
-#             p['distance_km'] = None
-#
-#     # 6) Сортируем: сначала по городу (distance уже мелкий), внутри — по расстоянию
-#     same_city.sort(key=lambda x: x['distance_km'] or float('inf'))
-#     others.sort(   key=lambda x: x['distance_km'] or float('inf'))
-#
-#     # 7) Объединяем и возвращаем первую анкету
-#     next_profile = (same_city + others)[0]
-#     return next_profile
-
 
 def get_next_profile(
     current_user_id: int,
@@ -228,6 +133,8 @@ def get_next_profile(
         p.lat,
         p.lon
     FROM profiles AS p
+        LEFT JOIN likes    AS l ON l.user_id = :me AND l.liked_user_id    = p.user_id
+        LEFT JOIN dislikes AS d ON d.user_id = :me AND d.disliked_user_id = p.user_id
     WHERE 
         p.user_id != :current_user_id
         AND p.gender = :wanted_gender
@@ -237,6 +144,7 @@ def get_next_profile(
     """
 
     params = {
+        "me": current_user_id,
         "current_user_id": current_user_id,
         "wanted_gender": wanted_gender,
         "wanted_looking_for": wanted_looking_for
@@ -259,11 +167,6 @@ def get_next_profile(
     # 1. ВЫПОЛНЯЕМ ЗАПРОС
     cursor.execute(sql, params)
     row = cursor.fetchone()
-
-
-
-
-
     cols = [d[0] for d in cursor.description]
     profile = dict(zip(cols, row))
     if profile['user_id'] == current_user_id:
@@ -285,7 +188,79 @@ def get_next_profile(
                                                  profile["lat"], profile["lon"]), 2)
     else:
         profile["distance_km"] = None
-
-
-
     return profile
+
+# Matches table
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS matches (
+    user_id      INTEGER,
+    match_id     INTEGER,
+    UNIQUE(user_id, match_id)
+)
+""")
+conn.commit()
+
+def add_match(user_id: int, match_id: int):
+    """Record a mutual match."""
+    cursor.execute(
+        "INSERT OR IGNORE INTO matches (user_id, match_id) VALUES (?, ?)",
+        (user_id, match_id)
+    )
+    conn.commit()
+
+def get_matches(user_id: int) -> list[int]:
+    """Return list of user_ids you have mutual matches with."""
+    cursor.execute(
+        "SELECT match_id FROM matches WHERE user_id = ?",
+        (user_id,)
+    )
+    rows = cursor.fetchall()
+    result = []
+    for row in rows:
+        # если row — кортеж, берём row[0]; если dict/Row — берём по имени
+        try:
+            result.append(row[0])
+        except (KeyError, IndexError, TypeError):
+            result.append(row["match_id"])
+    return result
+
+def get_liked_by(user_id: int) -> list[int]:
+    """Вернуть список user_id тех, кто лайкнул данного пользователя."""
+    """Кто лайкнул меня, без тех, кого я уже лайкнул/дизлайкнул или заматчил."""
+    cursor.execute("""
+          SELECT l.user_id
+            FROM likes AS l
+       LEFT JOIN dislikes AS d
+         ON d.user_id = ? AND d.disliked_user_id = l.user_id
+       LEFT JOIN matches AS m
+         ON m.user_id = ? AND m.match_id = l.user_id
+           WHERE l.liked_user_id = ?
+             AND d.disliked_user_id IS NULL
+             AND m.match_id        IS NULL
+        """, (user_id, user_id, user_id))
+    rows = cursor.fetchall()
+    result = []
+    for row in rows:
+        # если row — кортеж, берём row[0]; если dict/Row — берём по имени
+        try:
+            result.append(row[0])
+        except (KeyError, IndexError, TypeError):
+            result.append(row["user_id"])
+    return result
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS dislikes (
+    user_id         INTEGER,
+    disliked_user_id INTEGER,
+    UNIQUE(user_id, disliked_user_id)
+)
+""")
+conn.commit()
+
+def add_dislike(user_id: int, disliked_user_id: int):
+    """Записать дизлайк пользователя."""
+    cursor.execute(
+        "INSERT OR IGNORE INTO dislikes (user_id, disliked_user_id) VALUES (?,?)",
+        (user_id, disliked_user_id)
+    )
+    conn.commit()

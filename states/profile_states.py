@@ -17,3 +17,6 @@ class ProfileStates(StatesGroup):
     EDIT_BIO = State()
     EDIT_PHOTO = State()
     RESTART = State()
+    LIKES = State()  # when cycling through who liked you
+    MATCHES = State()  # when cycling through your mutual matches
+

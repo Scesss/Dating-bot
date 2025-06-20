@@ -7,8 +7,8 @@ from aiogram.client.default import DefaultBotProperties
 from config import Config
 from handlers import main_router
 from aiogram.fsm.storage.memory import MemoryStorage
-
-
+from handlers.likes   import router as likes_router
+from handlers.matches import router as matches_router
 
 
 # Configure logging
@@ -43,6 +43,8 @@ async def main():
 
         # Include your router with state handlers
         dp.include_router(main_router)
+        dp.include_router(likes_router)
+        dp.include_router(matches_router)
 
         # Start polling
         logger.info("⏳ Starting polling with state management...")

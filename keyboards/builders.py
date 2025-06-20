@@ -134,3 +134,15 @@ def get_browse_keyboard(target_id: int):
         InlineKeyboardButton(text="👎",callback_data=f"dislike_{target_id}")],
      [InlineKeyboardButton(text="◀ Завершить просмотр", callback_data="exit_browse")]
 ])
+
+def build_match_keyboard(user_id):
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(
+            text="💌️ Написать этому человеку",
+            url=f"tg://user?id={user_id}"
+        )],
+        [InlineKeyboardButton(text="◀️ Назад", callback_data="matches_prev"),
+         InlineKeyboardButton(text="▶️ Вперёд", callback_data="matches_next")],
+        [InlineKeyboardButton(text="◀ Завершить просмотр", callback_data="exit_matches")]
+    ])
+    return kb
