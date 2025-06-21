@@ -96,12 +96,22 @@ async def cmd_profile(message: types.Message, state: FSMContext, bot : Bot):
         # await state.set_state(ProfileStates.EDIT_PROFILE)
         # await on_edit_params(callback=show_profile_info)
 
-        gender = profile["gender"] if profile else "Парень"
-        await message.answer("⏳ Открываем анкету...", reply_markup=build_menu_keyboard(gender))
-        # Устанавливаем состояние меню (пользователь уже зарегистрирован)
-        await state.set_state(ProfileStates.MENU)
-        # Отправляем данные анкеты пользователю (см. следующий раздел о формате вывода)
-        await show_profile_info(message, profile)
+        await state.set_state(ProfileStates.EDIT_PROFILE)
+        # Убираем клавиатуру меню, чтобы не мешала (опционально)
+        await message.answer("⏳ Открываем твою анкету...",
+                         reply_markup=types.ReplyKeyboardRemove())
+        # Отправляем фото+данные профиля с инлайн-кнопками редактирования
+        caption = (f" Имя: {profile['name']}\n"
+        f" Возраст: {profile['age']}\n"
+        f" Пол: {profile['gender']}\n"
+        f" Ищет: {profile['looking_for']}\n"
+        f" Город: {profile['city'] or 'Не указан'}\n"
+        f" О себе: {profile['bio'][:1000]}")
+        if profile.get('photo_id'):
+            await message.answer_photo(profile['photo_id'], caption=caption,
+            reply_markup=get_edit_menu_kb())
+        else:
+            await message.answer(caption, reply_markup=get_edit_menu_kb())
     else:
         # Если профиля нет – запускаем регистрацию
         await state.set_state(ProfileStates.NAME)
