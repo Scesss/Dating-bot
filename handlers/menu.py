@@ -127,7 +127,7 @@ async def show_next_profile(callback: types.CallbackQuery):
         await callback.message.answer("Анкет больше не найдено.", reply_markup=build_menu_keyboard(my_profile['gender']))
         # Выходим из режима просмотра
         await callback.answer()  # закрываем иконку загрузки на кнопке
-        await callback.bot.delete_state(callback.from_user.id)  # очистить FSM state
+        # await callback.bot.delete_state(callback.from_user.id)  # очистить FSM state
 
 
 @router.callback_query(StateFilter(ProfileStates.BROWSING), F.data.startswith("like_"))
