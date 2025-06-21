@@ -6,7 +6,7 @@ from database import db
 from aiogram import Bot
 import logging
 from aiogram import Bot, Router, types
-from database.db import get_liked_by
+from database.db import *
 from typing import Union
 from aiogram.types import Message, CallbackQuery
 from aiogram.types import InputMediaPhoto
