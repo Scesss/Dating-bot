@@ -9,7 +9,7 @@ class Database:
 
     def create_tables(self):
         """Создает таблицы, если их еще нет."""
-        # Основная таблица пользователей
+        # Таблица пользователей
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS users (
                 user_id BIGINT PRIMARY KEY,
@@ -30,7 +30,7 @@ class Database:
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
-        # Referrals
+        # Таблица рефералов
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS referrals (
                 id SERIAL PRIMARY KEY,
@@ -41,7 +41,7 @@ class Database:
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
-        # Likes
+        # Таблица лайков
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS likes (
                 user_id BIGINT NOT NULL REFERENCES users(user_id),
@@ -50,7 +50,7 @@ class Database:
                 PRIMARY KEY (user_id, liked_user_id)
             )
         """)
-        # Matches
+        # Таблица матчей
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS matches (
                 user_id BIGINT NOT NULL REFERENCES users(user_id),
@@ -201,21 +201,45 @@ class Database:
         )
         return self.cursor.fetchall()
 
-    def get_next_profile(self, user_id: int) -> dict | None:
+    def get_next_profile(self, user_id: int = None, **kwargs) -> dict | None:
+        """
+        Возвращает следующий профиль пользователя, учитывая переведенное предпочтение в единственное число.
+        Дополнительные параметры игнорируются.
+        """
+        # Определяем ID
+        uid = kwargs.get('current_user_id') or user_id
+        if uid is None:
+            raise ValueError("User ID must be provided")
+        # Получаем профиль текущего пользователя
+        self.cursor.execute(
+            "SELECT gender, looking_for FROM users WHERE user_id = %(user_id)s",
+            {"user_id": uid}
+        )
+        me = self.cursor.fetchone()
+        if not me:
+            return None
+        # Маппинг множественного числа в единственное
+        singular_map = {
+            'Девушки': 'Девушка',
+            'Парни': 'Парень',
+            'Парень': 'Парни',
+            'Девушка':'Девушки'
+        }
+        pref_singular = singular_map.get(me['looking_for'], me['looking_for'])
+        # Формируем запрос на поиск
         self.cursor.execute(
             """
             SELECT u.* FROM users u
-            JOIN users me ON me.user_id = %(user_id)s
             WHERE u.user_id != %(user_id)s
-              AND u.gender = me.looking_for
-              AND u.looking_for = me.gender
+              AND u.gender = %(pref)s
+              AND u.looking_for = %(me_gender)s
               AND u.user_id NOT IN (
                   SELECT liked_user_id FROM likes WHERE user_id = %(user_id)s
               )
             ORDER BY RANDOM()
             LIMIT 1
             """,
-            {"user_id": user_id}
+            {"user_id": uid, "pref": pref_singular, "me_gender": me['gender']}
         )
         return self.cursor.fetchone()
 
