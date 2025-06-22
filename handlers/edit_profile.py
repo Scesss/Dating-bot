@@ -7,7 +7,8 @@ from aiogram.filters import StateFilter
 from database import db
 from database.db import get_profile
 from keyboards.builders import build_menu_keyboard, build_cancel_keyboard
-
+import logging
+logger = logging.getLogger(__name__)
 
 router = Router()
 
@@ -198,6 +199,7 @@ async def process_edit_photo(message: types.Message, state: FSMContext):
                                    caption=generate_profile_caption(profile),
                                    reply_markup=get_edit_menu_kb())
     await state.set_state(ProfileStates.EDIT_PROFILE)
+    logger.info(profile['photo_id'])
 
 
 

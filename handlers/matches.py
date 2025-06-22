@@ -35,13 +35,11 @@ async def show_match_profile(src, state: FSMContext):
     target = mids[idx]
     prof = get_profile(target)
     user_id = prof["user_id"]
-    caption = (
-        f"👤 {prof['name']}, {prof['age']} лет\n"
-        f"🚻 {prof['gender']} ищет {prof['looking_for']}\n"
-        f"📍 {prof['city']}\n"
-        f"📝 {prof['bio'][:200]}\n\n"
-       # f"[Написать сообщение](tg://user?id={user_id})"
-    )
+    caption = (f"{prof['name']}, "
+               f"{prof['age']}, "
+               f"{prof['city'] or 'Не указан'}\n\n"
+               f" {prof['bio'][:1000]}\n\n"
+               f" 🪙 {prof['balance']}, топ 2228")
     logger.info(
         "Showing match profile — user_id=%s, name=%s, age=%s, gender=%s",
         user_id,

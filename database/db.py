@@ -1,4 +1,11 @@
 from .connection import get_connection
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+blank_photo_id = os.getenv("BLANK_PROFILE_PHOTO_ID")
+
 
 class Database:
     def __init__(self):
@@ -297,6 +304,73 @@ class Database:
         self.cursor.execute(sql, params)
         return self.cursor.fetchone()
 
+    def get_all_profiles_sorted_by_balance(self) -> list[dict]:
+        """
+        Возвращает список всех анкет из таблицы users,
+        отсортированных по полю balance DESC.
+        """
+        self.cursor.execute("""
+               SELECT user_id, name, age, gender, looking_for, city, bio, photo_id, balance
+               FROM users
+               ORDER BY balance DESC
+           """)
+        rows = self.cursor.fetchall()
+        profiles = []
+        for row in rows:
+            profiles.append({
+                "user_id": row["user_id"],
+                "name": row["name"],
+                "age": row["age"],
+                "gender": row["gender"],
+                "looking_for": row["looking_for"],
+                "city": row["city"],
+                "bio": row["bio"],
+                "photo_id": row["photo_id"],
+                "balance": row["balance"],
+            })
+        return profiles
+
+    def change_balance(self, user_id: int, amount: int):
+        """
+        Плюс-минус amount к balance у user_id.
+        """
+        self.cursor.execute(
+            """
+            UPDATE users
+               SET balance = balance + %s
+             WHERE user_id = %s
+            """,
+            (amount, user_id)
+        )
+        self.conn.commit()
+
+    def award_given_like(self, giver_id: int):
+        self.change_balance(giver_id, 2)
+
+    def award_given_dislike(self, giver_id: int):
+        self.change_balance(giver_id, 1)
+
+    def award_received_like(self, receiver_id: int):
+        self.change_balance(receiver_id, 5)
+
+    def award_received_dislike(self, receiver_id: int):
+        self.change_balance(receiver_id, 2)
+
+    def sleep_profile(self, user_id: int):
+        """
+        Затирает bio и заменяет фото на пустую-заглушку.
+        """
+        self.cursor.execute(
+            """
+            UPDATE users
+               SET about = '',     -- или 'bio', как у вас колонка называется
+                   photo = %s
+             WHERE user_id = %s
+            """,
+            (blank_photo_id, user_id)
+        )
+        self.conn.commit()
+
 # Модульный интерфейс для простого импорта
 _db = Database()
 
@@ -370,3 +444,24 @@ def add_dislike(user_id: int, disliked_user_id: int):
 
 def user_disliked(user_id: int, disliked_user_id: int) -> bool:
     return _db.user_disliked(user_id, disliked_user_id)
+
+def get_all_profiles_sorted_by_balance() -> list[dict]:
+    return _db.get_all_profiles_sorted_by_balance()
+
+def change_balance(user_id: int, amount: int):
+    return _db.change_balance(user_id, amount)
+
+def award_given_like(user_id: int):
+    return _db.award_given_like(user_id)
+
+def award_given_dislike(user_id: int):
+    return _db.award_given_dislike(user_id)
+
+def award_received_like(user_id: int):
+    return _db.award_received_like(user_id)
+
+def award_received_dislike(user_id: int):
+    return _db.award_received_dislike(user_id)
+
+def sleep_profile(user_id: int):
+    return _db.sleep_profile(user_id)

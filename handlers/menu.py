@@ -6,6 +6,7 @@ from aiogram.filters import StateFilter
 from database import db
 from aiogram import Bot
 import logging
+from handlers.top import cmd_top
 
 logger = logging.getLogger(__name__)
 
@@ -29,12 +30,11 @@ async def process_choose(message: types.Message, state: FSMContext):
         profile = db.get_profile(message.from_user.id)
         if profile:
         # Отправляем фото+данные профиля с инлайн-кнопками редактирования
-            caption = (f" Имя: {profile['name']}\n"
-               f" Возраст: {profile['age']}\n"
-               f" Пол: {profile['gender']}\n"
-               f" Ищет: {profile['looking_for']}\n"
-               f" Город: {profile['city'] or 'Не указан'}\n"
-               f" О себе: {profile['bio'][:1000]}")
+            caption = (f"{profile['name']}, "
+                   f"{profile['age']}, "
+                   f"{profile['city'] or 'Не указан'}\n\n"
+                   f" {profile['bio'][:1000]}\n\n"
+                   f" 🪙 {profile['balance']}, топ 2228")
             if profile.get('photo_id'):
                 await message.answer_photo(profile['photo_id'], caption=caption,
                                    reply_markup=get_edit_menu_kb())
@@ -85,17 +85,20 @@ async def process_choose(message: types.Message, state: FSMContext):
             await message.answer("Сейчас нет анкет, соответствующих вашим параметрам.", reply_markup=build_menu_keyboard(gender))
             await state.set_state(ProfileStates.MENU)
     elif message.text == "🌙 Сон":
-        return await message.answer("Пока такой функции нет")
-    elif message.text == "👑 Топ":
-        return await message.answer("Пока такой функции нет")
 
-async def show_next_profile(callback: types.CallbackQuery):
+        jj
+
+
+    elif message.text == "👑 Топ":
+        await cmd_top(message, state)
+
+async def show_next_profile(callback: types.CallbackQuery, state: FSMContext):
     """Отображает следующую анкету в режиме просмотра или завершает просмотр, если анкет нет."""
     # Удаляем старое сообщение анкеты (текущее) перед показом следующей
-    try:
-        await callback.message.delete()
-    except:
-        pass
+    # 1) «Закрываем» старую анкету — убираем кнопки
+
+    await callback.message.edit_reply_markup(reply_markup=None)
+
     user_id = callback.from_user.id
     my_profile = db.get_profile(user_id)
     result = None
@@ -113,7 +116,7 @@ async def show_next_profile(callback: types.CallbackQuery):
         if result['distance_km'] is not None:
             text += f"📍 {result['distance_km']} км"
         text += f"\n\n{result['bio'][:200]}"
-
+        text += f"\n\n🪙 {result['balance']}"
         try:
             if result.get('photo_id'):
                 await callback.message.answer_photo(result['photo_id'], caption=text,
@@ -125,6 +128,7 @@ async def show_next_profile(callback: types.CallbackQuery):
     else:
         # Нет больше анкет
         await callback.message.answer("Анкет больше не найдено.", reply_markup=build_menu_keyboard(my_profile['gender']))
+        await state.set_state(ProfileStates.MENU)
         # Выходим из режима просмотра
         await callback.answer()  # закрываем иконку загрузки на кнопке
         # await callback.bot.delete_state(callback.from_user.id)  # очистить FSM state
@@ -135,6 +139,8 @@ async def on_like(callback: types.CallbackQuery, state: FSMContext, bot : Bot):
     target_id = int(callback.data.split("_")[1])
     current_user = callback.from_user.id
     db.add_like(current_user, target_id)
+    db.award_received_like(target_id)
+    db.award_given_like(callback.from_user.id)
     # Проверка взаимного лайка
     if db.user_liked(target_id, current_user):
         # Получаем имя оппонента для сообщения (можно было передать через callback или хранить в FSM данные текущей анкеты)
@@ -149,12 +155,15 @@ async def on_like(callback: types.CallbackQuery, state: FSMContext, bot : Bot):
         except Exception as e:
             logger.error(f"Failed to notify user {target_id} about match: {e}")
     # Показ следующей анкеты
-    await show_next_profile(callback)
+    await show_next_profile(callback, state)
 
 @router.callback_query(StateFilter(ProfileStates.BROWSING), F.data.startswith("dislike_"))
 async def on_dislike(callback: types.CallbackQuery, state: FSMContext):
     # Пользователь пропустил анкету
-    await show_next_profile(callback)
+    target_id = int(callback.data.split("_")[1])
+    db.award_received_dislike(callback.from_user.id)
+    db.award_received_dislike(target_id)
+    await show_next_profile(callback, state)
 
 @router.callback_query(StateFilter(ProfileStates.BROWSING), F.data == "exit_browse")
 async def on_exit_browse(callback: types.CallbackQuery, state: FSMContext):

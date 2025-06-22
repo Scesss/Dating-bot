@@ -9,7 +9,7 @@ from handlers import main_router
 from aiogram.fsm.storage.memory import MemoryStorage
 from handlers.likes   import router as likes_router
 from handlers.matches import router as matches_router
-
+from handlers.top import router as top_router
 
 # Configure logging
 logging.basicConfig(
@@ -45,6 +45,7 @@ async def main():
         dp.include_router(main_router)
         dp.include_router(likes_router)
         dp.include_router(matches_router)
+        dp.include_router(top_router)
 
         # Start polling
         logger.info("⏳ Starting polling with state management...")

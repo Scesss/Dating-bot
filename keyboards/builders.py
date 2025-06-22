@@ -102,6 +102,7 @@ def build_location_keyboard():
             [KeyboardButton(text="⬅️ Назад")]
         ],
         resize_keyboard=True,
+
         one_time_keyboard=True
     )
 
@@ -115,6 +116,9 @@ def build_back_keyboard():
 def build_cancel_keyboard():
     return ReplyKeyboardMarkup(
         keyboard=[[KeyboardButton(text="🚫 Отмена")]],
+
+
+
         resize_keyboard=True,
         one_time_keyboard=True
     )
@@ -132,7 +136,7 @@ def get_browse_keyboard(target_id: int):
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="💕", callback_data=f"like_{target_id}"),
         InlineKeyboardButton(text="👎",callback_data=f"dislike_{target_id}")],
-     [InlineKeyboardButton(text="◀ Завершить просмотр", callback_data="exit_browse")]
+     [InlineKeyboardButton(text="📖 Завершить просмотр", callback_data="exit_browse")]
 ])
 
 def build_match_keyboard(user_id):
@@ -145,4 +149,47 @@ def build_match_keyboard(user_id):
          InlineKeyboardButton(text="▶️ Вперёд", callback_data="matches_next")],
         [InlineKeyboardButton(text="◀ Завершить просмотр", callback_data="exit_matches")]
     ])
+    return kb
+
+
+
+def build_top_navigation_keyboard(
+    current_index: int,
+    total: int
+) -> InlineKeyboardMarkup:
+    """
+    Возвращает:
+      – Для первого профиля: [❌ Главное меню] [➡️]
+      – Для последнего:      [❌ Главное меню] [⬅️]
+      – Для остальных:       [⬅️] [❌ Главное меню] [➡️]
+    И внизу всегда ряд со статусом “текущая/всего”.
+    """
+
+    if current_index == 0:
+        # первый профиль
+        kb = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="⬇️",            callback_data="top:prev")],
+            [InlineKeyboardButton(text="◀ Завершить просмотр", callback_data="top:exit")]
+        ])
+
+    elif current_index == total - 1:
+        # последний профиль
+        kb = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="⬆️", callback_data="top:next")],
+            [InlineKeyboardButton(text="◀ Завершить просмотр", callback_data="top:exit")]
+        ])
+
+    else:
+        # любой профиль между первым и последним
+        kb = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="⬇️", callback_data="top:prev"),
+             InlineKeyboardButton(text="⬆️", callback_data="top:next")],
+            [InlineKeyboardButton(text="◀ Завершить просмотр", callback_data="top:exit")]
+        ])
+
+    # строка статуса: “1/10”, “2/10” и т.д.
+    # kb.row(
+    #     InlineKeyboardButton(text=f"{current_index + 1}/{total}", callback_data="ignore")
+    # )
+
     return kb
