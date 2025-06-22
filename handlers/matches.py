@@ -42,7 +42,13 @@ async def show_match_profile(src, state: FSMContext):
         f"📝 {prof['bio'][:200]}\n\n"
        # f"[Написать сообщение](tg://user?id={user_id})"
     )
-    logger.info(user_id, prof["name"], prof["age"], prof["gender"])
+    logger.info(
+        "Showing match profile — user_id=%s, name=%s, age=%s, gender=%s",
+        user_id,
+        prof["name"],
+        prof["age"],
+        prof["gender"],
+    )
 
     if isinstance(src, Message):
         await src.answer_photo(

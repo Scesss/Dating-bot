@@ -8,9 +8,10 @@ import logging
 from aiogram import Bot, Router, types
 from database.db import *
 from typing import Union
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, ReplyKeyboardRemove
 from aiogram.types import InputMediaPhoto
 from handlers.edit_profile import *
+from database.db import user_disliked
 # … остальные импорты …
 
 
@@ -135,11 +136,11 @@ async def show_liked_profile(src: Union[Message, CallbackQuery], state: FSMConte
         inline_keyboard=[[
             InlineKeyboardButton(
                 text="❤️ Поставить лайк",
-                callback_data=f"likes_accept:{target_id}"
+                callback_data=f"likes_accept:{prof['user_id']}"
             ),
             InlineKeyboardButton(
                 text="💔 Дизлайк",
-                callback_data=f"likes_decline:{target_id}"
+                callback_data=f"likes_decline:{prof['user_id']}"
             )
         ]]
     )
@@ -153,10 +154,20 @@ async def show_liked_profile(src: Union[Message, CallbackQuery], state: FSMConte
 
 @common_router.message(Command("likes"))
 async def cmd_likes(message: types.Message, state: FSMContext):
-    # 1) Fetch who liked me
-    likers = get_liked_by(message.from_user.id)
-    profile = db.get_profile(message.from_user.id)
+    me = message.from_user.id
+    # 1) Извлекаем всех, кто лайкнул вас
+    raw = get_liked_by(me)
+
+    # 2) Фильтруем тех, кого вы уже лайкнули или дизлайкнули
+    likers = [
+        prof for prof in raw
+        if not user_liked(me, prof['user_id'])
+        and not user_disliked(me, prof['user_id'])
+    ]
+
+    profile = db.get_profile(me)
     gender = profile["gender"] if profile else "Парень"
+
     if not likers:
         await message.answer(
             "Новых лайков нет ⏳ Возвращаемся в меню…",
@@ -164,12 +175,60 @@ async def cmd_likes(message: types.Message, state: FSMContext):
         )
         return
 
-    # 2) Save into state: list + cursor index
+    # 3) Сохраняем в state отфильтрованный список
     await state.update_data(liked_ids=likers, likes_index=0)
     await state.set_state(ProfileStates.LIKES)
 
-    # 3) Show first profile
+    # 4) Показываем первую анкету
     await show_liked_profile(message, state)
+
+@common_router.message(Command("menu"))
+async def cmd_menu(message: types.Message, state: FSMContext, bot : Bot):
+    member = await bot.get_chat_member(chat_id="@CafeDateInc", user_id=message.from_user.id)
+
+    if member.status in ("left", "kicked"):
+        await message.answer("❗️Для работы бота подпишитесь на наш канал: @CafeDateInc")
+        return
+
+    await state.clear()
+    user_id = message.from_user.id
+    logger.info(f"Start command from {user_id}")
+    profile = db.get_profile(user_id)
+
+    if profile:
+        await state.set_state(ProfileStates.MENU)
+        user_id = message.from_user.id
+        profile = get_profile(user_id)
+        text = (
+            "🌟 Это твоя анкета:\n\n"
+            f"👤 Имя: {profile['name']}\n"
+            f"🎂 Возраст: {profile['age']}\n"
+            f"🚻 Пол: {profile['gender']}\n"
+            f"💘 Ищет: {profile['looking_for']}\n"
+            f"📍 Город: {profile['city']}\n"
+            f"📖 О себе: {profile['bio'][:1000]}"
+        )
+        await message.answer(
+            text="⏳ Загружаю ваш профиль…", 
+            reply_markup=ReplyKeyboardRemove()
+        )
+        menu_kb = build_menu_keyboard(profile["gender"])
+        if profile.get('photo_id'):
+            await message.answer_photo(
+                photo=profile["photo_id"],
+                caption=text,
+                reply_markup=menu_kb
+            )
+        else:
+            await message.answer(
+                text=text,
+                reply_markup=menu_kb
+            )
+
+    else:
+        # Если профиля нет – запускаем регистрацию
+        await state.set_state(ProfileStates.NAME)
+        await message.answer("Как тебя зовут?", reply_markup=build_cancel_keyboard())
 
 
 # Export the router

@@ -53,6 +53,14 @@ class Database:
             )
         """)
         self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS dislikes (
+                user_id BIGINT NOT NULL REFERENCES users(user_id),
+                disliked_user_id BIGINT NOT NULL REFERENCES users(user_id),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (user_id, disliked_user_id)
+            )
+        """)
+        self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS matches (
                 user_id BIGINT NOT NULL REFERENCES users(user_id),
                 match_id BIGINT NOT NULL REFERENCES users(user_id),
@@ -186,6 +194,26 @@ class Database:
             (user_id, match_id)
         )
         self.conn.commit()
+    
+    def add_dislike(self, user_id: int, disliked_user_id: int):
+        self.cursor.execute(
+            """
+            INSERT INTO dislikes (user_id, disliked_user_id)
+            VALUES (%s, %s)
+            ON CONFLICT DO NOTHING
+            """,
+            (user_id, disliked_user_id)
+        )
+        # увеличиваем счётчик дизлайков (если нужно)
+        self.increment_dislikes(user_id)
+        self.conn.commit()
+
+    def user_disliked(self, user_id: int, disliked_user_id: int) -> bool:
+        self.cursor.execute(
+            "SELECT 1 FROM dislikes WHERE user_id = %s AND disliked_user_id = %s",
+            (user_id, disliked_user_id)
+        )
+        return bool(self.cursor.fetchone())
 
     def get_matches(self, user_id: int) -> list[dict]:
         self.cursor.execute(
@@ -295,10 +323,21 @@ def save_profile(**profile_data):
     return _db.save_profile(profile_data)
 
 def get_profile(*args, **kwargs) -> dict | None:
-    """Принимает любые параметры и возвращает профиль по user_id"""
-    uid = kwargs.get('current_user_id') or kwargs.get('user_id')
-    if uid is None and args:
-        uid = args[0]
+    """Принимает user_id или объект с ключом 'user_id' (RealDictRow или dict) и возвращает профиль."""
+    # Извлекаем идентификатор пользователя
+    uid = None
+    if args:
+        first = args[0]
+        # Если передан объект строки результата
+        try:
+            if hasattr(first, '__getitem__') and 'user_id' in first:
+                uid = first['user_id']
+            elif isinstance(first, int):
+                uid = first
+        except Exception:
+            pass
+    if uid is None:
+        uid = kwargs.get('current_user_id') or kwargs.get('user_id')
     return _db.get_profile(uid)
 
 def update_profile_field(user_id: int, field: str, value):
@@ -325,3 +364,9 @@ def get_next_profile(*args, **kwargs) -> dict | None:
         current_gender=kwargs.get('current_gender'),
         current_preference=kwargs.get('current_preference')
     )
+
+def add_dislike(user_id: int, disliked_user_id: int):
+    return _db.add_dislike(user_id, disliked_user_id)
+
+def user_disliked(user_id: int, disliked_user_id: int) -> bool:
+    return _db.user_disliked(user_id, disliked_user_id)
