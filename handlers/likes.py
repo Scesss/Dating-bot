@@ -1,5 +1,5 @@
 from aiogram import Router, F
-from aiogram.types import CallbackQuery
+from aiogram.types import CallbackQuery, Message
 from aiogram.filters.state import StateFilter
 from aiogram.fsm.context import FSMContext
 from database import db
@@ -7,7 +7,9 @@ from states.profile_states import ProfileStates
 from handlers.common import show_liked_profile
 from keyboards.builders import *
 from aiogram.exceptions import TelegramBadRequest
+from handlers.menu import show_next_profile  
 from database.db import *
+
 
 router = Router()
 
@@ -87,3 +89,78 @@ async def on_like_decline(call: CallbackQuery, state: FSMContext):
     await state.update_data(likes_index=idx)
     await show_liked_profile(call, state)
     await call.answer()
+
+# Простой лайк (как было раньше)
+@router.callback_query(ProfileStates.BROWSING, F.data.startswith("like_simple:"))
+async def like_simple(call: CallbackQuery, state: FSMContext):
+    target = int(call.data.split(":")[1])
+    add_like(call.from_user.id, target)
+    await change_balance(call.from_user.id, 0)  # здесь можно оставить для статистики
+    await call.answer("Вы поставили лайк 👍", show_alert=True)
+    # показать следующий профиль
+    await show_next_profile(call, state)
+
+# Лайк + сообщение
+@router.callback_query(ProfileStates.BROWSING, F.data.startswith("like_msg:"))
+async def like_with_msg_req(call: CallbackQuery, state: FSMContext):
+    target = int(call.data.split(":")[1])
+    await state.update_data(liked_user_id=target)
+    await state.set_state(ProfileStates.LIKE_WITH_MESSAGE)
+    await call.message.answer("Напишите сообщение, которое будет отправлено вместе с лайком:")
+    await call.answer()
+
+@router.message(ProfileStates.LIKE_WITH_MESSAGE)
+async def like_with_msg(msg: Message, state: FSMContext):
+    data = await state.get_data()
+    target = data["liked_user_id"]
+    text   = msg.text[:500]  # обрезаем, если слишком много
+    add_like(msg.from_user.id, target, message=text)
+    # уведомляем получателя
+    sender = get_user(msg.from_user.id)
+    await msg.bot.send_message(
+        target,
+        f"🎉 Вам поставили лайк с сообщением от {sender['name']}:\n\n«{text}»"
+    )
+    await msg.answer("Сообщение отправлено вместе с лайком! 👍")
+    await state.set_state(ProfileStates.BROWSING)
+    await show_next_profile(msg, state)
+
+# Лайк + передача валюты
+@router.callback_query(ProfileStates.BROWSING, F.data.startswith("like_cash:"))
+async def like_with_cash_req(call: CallbackQuery, state: FSMContext):
+    target  = int(call.data.split(":")[1])
+    profile = get_user(call.from_user.id)
+    bal     = profile["balance"]
+    await state.update_data(liked_user_id=target)
+    await state.set_state(ProfileStates.LIKE_WITH_CASH)
+    await call.message.answer(f"У вас на счету {bal} монет. Введите сумму, которую хотите отправить вместе с лайком:")
+    await call.answer()
+
+@router.message(ProfileStates.LIKE_WITH_CASH)
+async def like_with_cash(msg: Message, state: FSMContext):
+    data   = await state.get_data()
+    target = data["liked_user_id"]
+    try:
+        amount = int(msg.text)
+        if amount <= 0:
+            raise ValueError
+    except ValueError:
+        return await msg.answer("Пожалуйста, введите положительное число монет.")
+
+    profile = get_user(msg.from_user.id)
+    if profile["balance"] < amount:
+        return await msg.answer("У вас недостаточно монет. Введите другую сумму.")
+
+    # списываем с отправителя и зачисляем получателю
+    change_balance(msg.from_user.id, -amount)
+    change_balance(target, amount)
+    add_like(msg.from_user.id, target, amount=amount)
+
+    sender = get_user(msg.from_user.id)
+    await msg.bot.send_message(
+        target,
+        f"💰 Вам поставили лайк от {sender['name']} и перевели {amount} монет!"
+    )
+    await msg.answer(f"Вы отправили лайк и {amount} монет. 💸")
+    await state.set_state(ProfileStates.BROWSING)
+    await show_next_profile(msg, state)

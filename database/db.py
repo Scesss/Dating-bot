@@ -25,7 +25,7 @@ class Database:
                     CREATE TABLE IF NOT EXISTS users (
                         user_id BIGINT PRIMARY KEY,
                         name VARCHAR(100) NOT NULL,
-                        age INTEGER CHECK (age >= 18 AND age <= 120),
+                        age INTEGER CHECK (age >= 14 AND age <= 120),
                         gender VARCHAR(20) NOT NULL,
                         looking_for VARCHAR(20) NOT NULL,
                         bio TEXT,
@@ -55,6 +55,8 @@ class Database:
             CREATE TABLE IF NOT EXISTS likes (
                 user_id BIGINT NOT NULL REFERENCES users(user_id),
                 liked_user_id BIGINT NOT NULL REFERENCES users(user_id),
+                message TEXT,                         
+                amount   INTEGER DEFAULT 0, 
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (user_id, liked_user_id)
             )
@@ -170,14 +172,15 @@ class Database:
         )
         return self.cursor.fetchall()
 
-    def add_like(self, user_id: int, liked_user_id: int) -> bool:
+    def add_like(self, user_id: int, liked_user_id: int, message: str | None = None,
+             amount: int = 0) -> bool:
         self.cursor.execute(
-            """
-            INSERT INTO likes (user_id, liked_user_id)
-            VALUES (%s, %s)
-            ON CONFLICT DO NOTHING
-            """,
-            (user_id, liked_user_id)
+        """
+        INSERT INTO likes (user_id, liked_user_id, message, amount)
+        VALUES (%s, %s, %s, %s)
+        ON CONFLICT (user_id, liked_user_id) DO NOTHING
+        """,
+        (user_id, liked_user_id, message, amount)
         )
         self.conn.commit()
         self.increment_likes(user_id)
@@ -274,6 +277,7 @@ class Database:
             p.city,
             p.lat,
             p.lon,
+            p.balance, 
             CASE
                 WHEN %(current_lat)s IS NOT NULL AND %(current_lon)s IS NOT NULL AND p.lat IS NOT NULL AND p.lon IS NOT NULL THEN
                     6371 * acos(
@@ -423,8 +427,11 @@ def user_liked(user_id: int, liked_user_id: int) -> bool:
 def get_liked_by(user_id: int) -> list[dict]:
     return _db.get_liked_by(user_id)
 
-def add_like(user_id: int, liked_user_id: int) -> bool:
-    return _db.add_like(user_id, liked_user_id)
+def add_like(user_id: int,
+             liked_user_id: int,
+             message: str | None = None,
+             amount: int = 0) -> bool:
+    return _db.add_like(user_id, liked_user_id, message, amount)
 
 def add_match(user_id: int, match_id: int):
     return _db.add_match(user_id, match_id)

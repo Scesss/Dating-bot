@@ -134,11 +134,16 @@ def build_restart_keyboard():
 
 def get_browse_keyboard(target_id: int):
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="💕", callback_data=f"like_{target_id}"),
-        InlineKeyboardButton(text="👎",callback_data=f"dislike_{target_id}")],
-     [InlineKeyboardButton(text="📖 Завершить просмотр", callback_data="exit_browse")]
-])
-
+        [
+            InlineKeyboardButton(text="👍 Лайк",              callback_data=f"like_simple:{target_id}"),
+            InlineKeyboardButton(text="💬 Лайк с сообщением", callback_data=f"like_msg:{target_id}"),
+            InlineKeyboardButton(text="💰 Лайк с чеком",      callback_data=f"like_cash:{target_id}")
+        ],
+        [
+            InlineKeyboardButton(text="👎 Дизлайк",           callback_data=f"dislike:{target_id}"),
+            InlineKeyboardButton(text="📖 Завершить просмотр", callback_data="exit_browse")
+        ]
+    ])
 def build_match_keyboard(user_id):
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(

@@ -19,4 +19,6 @@ class ProfileStates(StatesGroup):
     RESTART = State()
     LIKES = State()  # when cycling through who liked you
     MATCHES = State()  # when cycling through your mutual matches
+    LIKE_WITH_MESSAGE = State()   # ожидаем текст сообщения для лайка
+    LIKE_WITH_CASH    = State()   # ожидаем сумму монет для лайка
 
