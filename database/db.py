@@ -53,13 +53,16 @@ class Database:
         """)
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS likes (
-                user_id BIGINT NOT NULL REFERENCES users(user_id),
-                liked_user_id BIGINT NOT NULL REFERENCES users(user_id),
-                message TEXT,                         
-                amount   INTEGER DEFAULT 0, 
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                PRIMARY KEY (user_id, liked_user_id)
-            )
+                user_id           BIGINT      NOT NULL,
+                liked_user_id     BIGINT      NOT NULL,
+                message           TEXT,
+                amount            INTEGER     NOT NULL DEFAULT 0,
+                seen_by_liked_user BOOLEAN    NOT NULL DEFAULT FALSE,
+                created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+                PRIMARY KEY (user_id, liked_user_id),
+                FOREIGN KEY (user_id)       REFERENCES users(user_id) ON DELETE CASCADE,
+                FOREIGN KEY (liked_user_id) REFERENCES users(user_id) ON DELETE CASCADE
+        );
         """)
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS dislikes (
@@ -71,11 +74,14 @@ class Database:
         """)
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS matches (
-                user_id BIGINT NOT NULL REFERENCES users(user_id),
-                match_id BIGINT NOT NULL REFERENCES users(user_id),
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                PRIMARY KEY (user_id, match_id)
-            )
+                user_id        BIGINT      NOT NULL,
+                match_id       BIGINT      NOT NULL,
+                seen_by_user   BOOLEAN     NOT NULL DEFAULT FALSE,
+                created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+                PRIMARY KEY (user_id, match_id),
+                FOREIGN KEY (user_id)  REFERENCES users(user_id) ON DELETE CASCADE,
+                FOREIGN KEY (match_id) REFERENCES users(user_id) ON DELETE CASCADE
+            );
         """)
         self.conn.commit()
 
@@ -101,6 +107,55 @@ class Database:
                 updated_at = CURRENT_TIMESTAMP
         """
         self.cursor.execute(query, user_data)
+        self.conn.commit()
+
+    # ——— новые методы для непросмотренных лайков ———
+
+    def get_unseen_likes_count(self, user_id: int) -> int:
+        self.cursor.execute(
+            """
+            SELECT COUNT(*) AS cnt
+            FROM likes
+            WHERE liked_user_id = %s
+            AND seen_by_liked_user = FALSE
+            """,
+            (user_id,)
+        )
+        row = self.cursor.fetchone()
+        # row теперь DictRow, и cnt — наш ключ
+        return row["cnt"] or 0
+
+    def mark_likes_seen(self, user_id: int) -> None:
+        self.cursor.execute(
+            "UPDATE likes "
+            "   SET seen_by_liked_user = TRUE "
+            " WHERE liked_user_id = %s AND seen_by_liked_user = FALSE",
+            (user_id,)
+        )
+        self.conn.commit()
+
+    # ——— новые методы для непросмотренных матчей ———
+
+    def get_unseen_matches_count(self, user_id: int) -> int:
+        self.cursor.execute(
+            """
+            SELECT COUNT(*) AS cnt
+            FROM matches
+            WHERE user_id = %s
+            AND seen_by_user = FALSE
+            """,
+            (user_id,)
+        )
+        row = self.cursor.fetchone()
+        return row["cnt"] or 0
+
+    def mark_matches_seen(self, user_id: int) -> None:
+        self.cursor.execute(
+            "UPDATE matches "
+            "   SET seen_by_user = TRUE "
+            " WHERE user_id = %s AND seen_by_user = FALSE",
+            (user_id,)
+        )
         self.conn.commit()
 
     def get_user(self, user_id: int) -> dict | None:
@@ -162,15 +217,21 @@ class Database:
         return bool(self.cursor.fetchone())
 
     def get_liked_by(self, user_id: int) -> list[dict]:
+        """Кто лайкнул меня: возвращаем профиль + текст и сумму лайка."""
         self.cursor.execute(
             """
-            SELECT u.* FROM users u
-            JOIN likes l ON l.user_id = u.user_id
-            WHERE l.liked_user_id = %s
+            SELECT 
+              u.*,
+              l.message   AS like_message,
+              l.amount    AS like_amount
+            FROM users u
+            JOIN likes l 
+              ON l.user_id = u.user_id
+             AND l.liked_user_id = %s
             """,
             (user_id,)
         )
-        return self.cursor.fetchall()
+        return [dict(row) for row in self.cursor.fetchall()]
 
     def add_like(self, user_id: int, liked_user_id: int, message: str | None = None,
              amount: int = 0) -> bool:
@@ -226,15 +287,24 @@ class Database:
         return bool(self.cursor.fetchone())
 
     def get_matches(self, user_id: int) -> list[dict]:
+        """Мои матчи: возвращаем профиль + исходный message/amount лайка."""
         self.cursor.execute(
             """
-            SELECT u.* FROM users u
-            JOIN matches m ON m.match_id = u.user_id
-            WHERE m.user_id = %s
+            SELECT
+              u.*,
+              l.message   AS like_message,
+              l.amount    AS like_amount
+            FROM users u
+            JOIN matches m 
+              ON m.match_id = u.user_id
+             AND m.user_id = %s
+            LEFT JOIN likes l
+              ON l.user_id       = u.user_id
+             AND l.liked_user_id = %s
             """,
-            (user_id,)
+            (user_id, user_id)
         )
-        return self.cursor.fetchall()
+        return [dict(row) for row in self.cursor.fetchall()]
 
     def get_next_profile(self, *, current_user_id: int, current_gender: str, current_preference: str,
                          current_lat: float = None, current_lon: float = None) -> dict | None:
@@ -294,6 +364,9 @@ class Database:
             AND p.looking_for = %(wanted_looking_for)s
             AND p.user_id NOT IN (
                 SELECT liked_user_id FROM likes WHERE user_id = %(current_user_id)s
+            )
+            AND p.user_id NOT IN (
+                SELECT disliked_user_id FROM dislikes WHERE user_id = %(current_user_id)s
             )
         ORDER BY distance_km NULLS LAST, RANDOM()
         LIMIT 1
@@ -424,9 +497,6 @@ def update_profile_field(user_id: int, field: str, value):
 def user_liked(user_id: int, liked_user_id: int) -> bool:
     return _db.user_liked(user_id, liked_user_id)
 
-def get_liked_by(user_id: int) -> list[dict]:
-    return _db.get_liked_by(user_id)
-
 def add_like(user_id: int,
              liked_user_id: int,
              message: str | None = None,
@@ -435,9 +505,6 @@ def add_like(user_id: int,
 
 def add_match(user_id: int, match_id: int):
     return _db.add_match(user_id, match_id)
-
-def get_matches(user_id: int) -> list[dict]:
-    return _db.get_matches(user_id)
 
 def get_next_profile(*args, **kwargs) -> dict | None:
     return _db.get_next_profile(
@@ -472,3 +539,21 @@ def award_received_dislike(user_id: int):
 
 def sleep_profile(user_id: int):
     return _db.sleep_profile(user_id)
+
+def get_unseen_likes_count(user_id: int) -> int:
+    return _db.get_unseen_likes_count(user_id)
+
+def mark_likes_seen(user_id: int) -> None:
+    _db.mark_likes_seen(user_id)
+
+def get_unseen_matches_count(user_id: int) -> int:
+    return _db.get_unseen_matches_count(user_id)
+
+def mark_matches_seen(user_id: int) -> None:
+    _db.mark_matches_seen(user_id)
+
+def get_liked_by(user_id: int) -> list[dict]:
+    return _db.get_liked_by(user_id)
+
+def get_matches(user_id: int) -> list[dict]:
+    return _db.get_matches(user_id)

@@ -7,6 +7,7 @@ from database import db
 from aiogram import Bot
 import logging
 from handlers.top import cmd_top
+from aiogram.types import CallbackQuery, Message
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +57,7 @@ async def process_choose(message: types.Message, state: FSMContext):
             return
         # Ищем первую подходящую анкету
         logger.info("get_next_profile(simple) → %r", my_profile)
-        result = get_next_profile(
+        result = db.get_next_profile(
             current_user_id    = message.from_user.id,
             current_gender     = my_profile['gender'],
             current_preference = my_profile['looking_for'],
@@ -83,19 +84,11 @@ async def process_choose(message: types.Message, state: FSMContext):
             await message.answer("Сейчас нет анкет, соответствующих вашим параметрам.", reply_markup=build_menu_keyboard(gender))
             await state.set_state(ProfileStates.MENU)
     elif message.text == "🌙 Сон":
-
-        jj
-
-
+        return await message.answer("Пока нет такой функции")
     elif message.text == "👑 Топ":
         await cmd_top(message, state)
 
-from aiogram.types import CallbackQuery, Message
-from aiogram.fsm.context import FSMContext
 
-from database.db import get_profile, get_next_profile
-from keyboards.builders import get_browse_keyboard
-from states.profile_states import ProfileStates
 
 async def show_next_profile(event: CallbackQuery | Message, state: FSMContext):
     """
@@ -133,7 +126,7 @@ async def show_next_profile(event: CallbackQuery | Message, state: FSMContext):
 
     # 4) Достаём следующую анкету
     try:
-        result = get_next_profile(
+        result = db.get_next_profile(
             current_user_id    = user_id,
             current_gender     = gender,
             current_preference = preference,
@@ -199,42 +192,4 @@ async def show_next_profile(event: CallbackQuery | Message, state: FSMContext):
 
 
 
-@router.callback_query(StateFilter(ProfileStates.BROWSING), F.data.startswith("like_simple:"))
-async def on_like(callback: types.CallbackQuery, state: FSMContext, bot : Bot):
-    target_id = int(callback.data.split(":", 1)[1])
-    current_user = callback.from_user.id
-    db.add_like(current_user, target_id)
-    db.award_received_like(target_id)
-    db.award_given_like(callback.from_user.id)
-    # Проверка взаимного лайка
-    if db.user_liked(target_id, current_user):
-        # Получаем имя оппонента для сообщения (можно было передать через callback или хранить в FSM данные текущей анкеты)
-        target_profile = db.get_profile(target_id)
-        name = target_profile['name'] if target_profile else "вам"
-        # Уведомление текущему пользователю
-        await callback.message.answer(f"❤️ У вас взаимная симпатия с {name}!")
-        # Уведомление второму пользователю о совпадении
-        try:
-            user_name = (db.get_profile(current_user) or {}).get('name', 'вам')
-            await bot.send_message(target_id, f"❤️ У вас взаимная симпатия с {user_name}!")
-        except Exception as e:
-            logger.error(f"Failed to notify user {target_id} about match: {e}")
-    # Показ следующей анкеты
-    await show_next_profile(callback, state)
 
-@router.callback_query(StateFilter(ProfileStates.BROWSING), F.data.startswith("dislike_"))
-async def on_dislike(callback: types.CallbackQuery, state: FSMContext):
-    # Пользователь пропустил анкету
-    target_id = int(callback.data.split(":", 1)[1])
-    db.award_received_dislike(callback.from_user.id)
-    db.award_received_dislike(target_id)
-    await show_next_profile(callback, state)
-
-@router.callback_query(StateFilter(ProfileStates.BROWSING), F.data == "exit_browse")
-async def on_exit_browse(callback: types.CallbackQuery, state: FSMContext):
-    # Выйти из режима просмотра
-    await callback.message.delete()  # удаляем последнюю показанную анкету
-    await state.set_state(ProfileStates.MENU)
-    user_id = callback.from_user.id
-    my_profile = db.get_profile(user_id)
-    await callback.message.answer("📖 Вы вернулись в меню.", reply_markup=build_menu_keyboard(my_profile['gender']))

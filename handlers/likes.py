@@ -28,7 +28,20 @@ async def on_like_accept(call: CallbackQuery, state: FSMContext):
     # 2) Если взаимный — заматчим
     if user_liked(target, me):
         add_match(me, target)
+        # уведомляем инициатора
+        my_name     = db.get_profile(me)["name"]
+        target_name = db.get_profile(target)["name"]
+        
+        await call.message.answer(f"🎉 Это взаимный лайк! У вас новый матч с {target_name}!")
+
         add_match(target, me)
+        # уведомляем получателя
+
+        target_unseen = db.get_unseen_matches_count(target)
+        await call.bot.send_message(
+            target,
+            f"🤝 У вас {target_unseen} непросмотренных матчей!"
+        )
 
     # Когда кандидаты кончились — удаляем сообщение и возвращаем меню
     if idx >= len(likers):
@@ -42,7 +55,7 @@ async def on_like_accept(call: CallbackQuery, state: FSMContext):
         profile = db.get_profile(call.from_user.id)
         gender  = profile.get("gender") if profile else "Парень"
         await call.message.answer(
-            "Новых лайков нет ⏳ Возвращаемся в меню…",
+            "Анкеты закончились ⏳ Возвращаемся в меню…",
             reply_markup=build_menu_keyboard(gender)
         )
         await state.set_state(ProfileStates.MENU)
@@ -56,47 +69,39 @@ async def on_like_accept(call: CallbackQuery, state: FSMContext):
 
 
 @router.callback_query(
-    StateFilter(ProfileStates.LIKES),
-    F.data.startswith("likes_decline:")
+    StateFilter(ProfileStates.BROWSING),
+    F.data.startswith("dislike:")
 )
 async def on_like_decline(call: CallbackQuery, state: FSMContext):
-    data   = await state.get_data()
-    likers = data.get("liked_ids", [])
-    idx    = data.get("likes_index", 0) + 1
     me = call.from_user.id
     target = int(call.data.split(":", 1)[1])
-
     # Запишем дизлайк
     add_dislike(me, target)
-    # Когда кандидаты кончились
-    if idx >= len(likers):
-        await state.set_state(ProfileStates.MENU)
-        try:
-            await call.message.delete()
-        except TelegramBadRequest:
-            pass
-        profile = db.get_profile(call.from_user.id)
-        gender  = profile.get("gender") if profile else "Парень"
-        await call.message.answer(
-            "Новых лайков нет ⏳ Возвращаемся в меню…",
-            reply_markup=build_menu_keyboard(gender)
-        )
-        await state.set_state(ProfileStates.MENU)
-        await call.answer()
-        return
-
-    # Иначе — следующая анкета
-    await state.update_data(likes_index=idx)
-    await show_liked_profile(call, state)
     await call.answer()
+    # показать следующий профиль
+    await show_next_profile(call, state)
+    
 
 # Простой лайк (как было раньше)
 @router.callback_query(ProfileStates.BROWSING, F.data.startswith("like_simple:"))
 async def like_simple(call: CallbackQuery, state: FSMContext):
     target = int(call.data.split(":")[1])
     add_like(call.from_user.id, target)
-    await change_balance(call.from_user.id, 0)  # здесь можно оставить для статистики
-    await call.answer("Вы поставили лайк 👍", show_alert=True)
+    
+    if db.user_liked(target, call.from_user.id):
+        # Получаем имя оппонента для сообщения (можно было передать через callback или хранить в FSM данные текущей анкеты)
+        target_profile = db.get_profile(target)
+        name = target_profile['name'] if target_profile else "вам"
+        target_unseen = db.get_unseen_matches_count(target)
+        await call.bot.send_message(target, f"🤝 У вас {target_unseen} непросмотренных матчей!")
+    else:
+        unseen = get_unseen_likes_count(target)
+        await call.bot.send_message(
+            target,
+            f"❤️ У вас {unseen} непросмотренных лайков!"
+        )
+    change_balance(call.from_user.id, 0)  # здесь можно оставить для статистики
+    await call.answer()
     # показать следующий профиль
     await show_next_profile(call, state)
 
@@ -116,11 +121,18 @@ async def like_with_msg(msg: Message, state: FSMContext):
     text   = msg.text[:500]  # обрезаем, если слишком много
     add_like(msg.from_user.id, target, message=text)
     # уведомляем получателя
-    sender = get_user(msg.from_user.id)
-    await msg.bot.send_message(
-        target,
-        f"🎉 Вам поставили лайк с сообщением от {sender['name']}:\n\n«{text}»"
-    )
+    if db.user_liked(target, msg.from_user.id):
+        # Получаем имя оппонента для сообщения (можно было передать через callback или хранить в FSM данные текущей анкеты)
+        target_profile = db.get_profile(target)
+        name = target_profile['name'] if target_profile else "вам"
+        target_unseen = db.get_unseen_matches_count(target)
+        await msg.bot.send_message(target, f"🤝 У вас {target_unseen} непросмотренных матчей!")
+    else:
+        unseen = get_unseen_likes_count(target)
+        await msg.bot.send_message(
+            target,
+            f"❤️ У вас {unseen} непросмотренных лайков!"
+        )
     await msg.answer("Сообщение отправлено вместе с лайком! 👍")
     await state.set_state(ProfileStates.BROWSING)
     await show_next_profile(msg, state)
@@ -156,11 +168,27 @@ async def like_with_cash(msg: Message, state: FSMContext):
     change_balance(target, amount)
     add_like(msg.from_user.id, target, amount=amount)
 
-    sender = get_user(msg.from_user.id)
-    await msg.bot.send_message(
-        target,
-        f"💰 Вам поставили лайк от {sender['name']} и перевели {amount} монет!"
-    )
+    if db.user_liked(target, msg.from_user.id):
+        # Получаем имя оппонента для сообщения (можно было передать через callback или хранить в FSM данные текущей анкеты)
+        target_profile = db.get_profile(target)
+        name = target_profile['name'] if target_profile else "вам"
+        target_unseen = db.get_unseen_matches_count(target)
+        await msg.bot.send_message(target, f"🤝 У вас {target_unseen} непросмотренных матчей!")
+    else:
+        unseen = get_unseen_likes_count(target)
+        await msg.bot.send_message(
+            target,
+            f"❤️ У вас {unseen} непросмотренных лайков!"
+        )
     await msg.answer(f"Вы отправили лайк и {amount} монет. 💸")
     await state.set_state(ProfileStates.BROWSING)
     await show_next_profile(msg, state)
+
+@router.callback_query(StateFilter(ProfileStates.BROWSING), F.data == "exit_browse")
+async def on_exit_browse(callback: types.CallbackQuery, state: FSMContext):
+    # Выйти из режима просмотра
+    await callback.message.delete()  # удаляем последнюю показанную анкету
+    await state.set_state(ProfileStates.MENU)
+    user_id = callback.from_user.id
+    my_profile = db.get_profile(user_id)
+    await callback.message.answer("📖 Вы вернулись в меню.", reply_markup=build_menu_keyboard(my_profile['gender']))

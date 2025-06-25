@@ -3,6 +3,7 @@ from .common import common_router
 from .questionnaire import router as questionnaire_router  # Correct import
 from .menu import router as menu_router
 from .edit_profile import router as edit_profile_menu
+from .matches import router as matches_router
 
 # Create main router
 main_router = Router()

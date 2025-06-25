@@ -16,18 +16,26 @@ router = Router()
 
 @router.message(Command("matches"))
 async def cmd_matches(message: Message, state: FSMContext):
-    mutuals = get_matches(message.from_user.id)
-    profile = db.get_profile(message.from_user.id)
-    gender = profile.get("gender") if profile else "Парень"
-    if not mutuals:
-        await message.answer("Пока нет взаимных лайков 🙁",
-                             reply_markup=build_menu_keyboard(gender))
+    user_id = message.from_user.id
+    match_ids = get_matches(user_id)  # из database.db
+
+    if not match_ids:
+        # если нет ни одного матча
+        profile = get_profile(user_id)
+        await message.answer(
+            "У вас пока нет матчей.",
+            reply_markup=build_menu_keyboard(profile["gender"])
+        )
         return
 
-    await state.update_data(match_ids=mutuals, match_index=0)
+    # сохраняем в FSM
+    await state.update_data(match_ids=match_ids, match_index=0)
     await state.set_state(ProfileStates.MATCHES)
+
+    # сразу показываем первый матч
     await show_match_profile(message, state)
 
+@router.message(StateFilter(ProfileStates.MATCHES))
 async def show_match_profile(src, state: FSMContext):
     data = await state.get_data()
     idx   = data["match_index"]
@@ -61,7 +69,10 @@ async def show_match_profile(src, state: FSMContext):
             reply_markup=build_match_keyboard(user_id),
         )
 
-@router.callback_query(StateFilter(ProfileStates.MATCHES), F.data=="matches_next")
+@router.callback_query(
+    StateFilter(ProfileStates.MATCHES),
+    F.data == "matches_next"
+)
 async def on_match_next(call: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     idx  = (data["match_index"] + 1) % len(data["match_ids"])
@@ -69,7 +80,10 @@ async def on_match_next(call: CallbackQuery, state: FSMContext):
     await show_match_profile(call, state)
     await call.answer()
 
-@router.callback_query(StateFilter(ProfileStates.MATCHES), F.data=="matches_prev")
+@router.callback_query(
+    StateFilter(ProfileStates.MATCHES),
+    F.data == "matches_prev"
+)
 async def on_match_prev(call: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     idx  = (data["match_index"] - 1) % len(data["match_ids"])

@@ -123,6 +123,14 @@ async def show_liked_profile(src: Union[Message, CallbackQuery], state: FSMConte
                f"{prof['city'] or 'Не указан'}\n\n"
                f" {prof['bio'][:1000]}\n\n"
                f" 🪙 {prof['balance']}, топ 2228")
+    # если был текстовый лайк
+    if prof.get("like_message"):
+        text += f"\n\n✉️ Сообщение:\n{prof['like_message']}"
+    # если была передача монет
+    if prof.get("like_amount", 0) > 0:
+        text += f"\n\n💰 Вам перевели: {prof['like_amount']} монет"
+    # Добавим баланс или другую инфу, если нужно
+    
     kb = InlineKeyboardMarkup(
         inline_keyboard=[[
             InlineKeyboardButton(
@@ -156,6 +164,8 @@ async def cmd_likes(message: types.Message, state: FSMContext):
         and not user_disliked(me, prof['user_id'])
     ]
 
+    db.mark_likes_seen(me)
+
     profile = db.get_profile(me)
     gender = profile["gender"] if profile else "Парень"
 
@@ -180,6 +190,20 @@ async def cmd_menu(message: types.Message, state: FSMContext, bot : Bot):
     if member.status in ("left", "kicked"):
         await message.answer("❗️Для работы бота подпишитесь на наш канал: @CafeDateInc")
         return
+
+    user_id = message.from_user.id
+    unseen_likes   = db.get_unseen_likes_count(user_id)
+    unseen_matches= db.get_unseen_matches_count(user_id)
+    notify_parts = []
+    if unseen_likes:
+        notify_parts.append(f"❤️ У вас {unseen_likes} непросмотренных лайков")
+    if unseen_matches:
+        notify_parts.append(f"🤝 У вас {unseen_matches} непросмотренных матчей")
+    if notify_parts:
+        # после показа уведомления можно отметить их как «увиденные»
+        await message.answer("\n".join(notify_parts))
+        db.mark_likes_seen(user_id)
+        db.mark_matches_seen(user_id)
 
     await state.clear()
     user_id = message.from_user.id
