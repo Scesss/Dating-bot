@@ -12,6 +12,7 @@ from aiogram.types import Message, CallbackQuery, ReplyKeyboardRemove
 from aiogram.types import InputMediaPhoto
 from handlers.edit_profile import *
 from database.db import user_disliked
+from .matches import show_match_profile
 
 # … остальные импорты …
 
@@ -114,22 +115,22 @@ async def show_liked_profile(src: Union[Message, CallbackQuery], state: FSMConte
     data = await state.get_data()
     idx = data["likes_index"]
     likers = data["liked_ids"]
-    target_id = likers[idx]
+    prof   = likers[idx]           # сразу берём всю запись профиля + like_message + like_amount
+    target_id = prof["user_id"]
 
-    # Pull their full profile
-    prof = db.get_profile(target_id)
-    text = (f"{prof['name']}, "
-               f"{prof['age']}, "
-               f"{prof['city'] or 'Не указан'}\n\n"
-               f" {prof['bio'][:1000]}\n\n"
-               f" 🪙 {prof['balance']}, топ 2228")
+    
+    text = (f"{prof['name']}, {prof['age']}, {prof.get('city') or 'Не указан'}")
+    if prof.get("distance_km") is not None:
+        text += f", 📍 {prof['distance_km']:.1f} км"
+    text += (f"\n\n{prof['bio'][:200]}\n\n"
+                    f" 🪙 {prof['balance']}, топ 2228")
+    
     # если был текстовый лайк
+    if prof.get("like_amount"):
+        text += f"\n\n💰 Передано: {prof['like_amount']} монет"
+    # если оставили сообщение
     if prof.get("like_message"):
-        text += f"\n\n✉️ Сообщение:\n{prof['like_message']}"
-    # если была передача монет
-    if prof.get("like_amount", 0) > 0:
-        text += f"\n\n💰 Вам перевели: {prof['like_amount']} монет"
-    # Добавим баланс или другую инфу, если нужно
+        text += f"\n\n💬 «{prof['like_message']}»"
     
     kb = InlineKeyboardMarkup(
         inline_keyboard=[[
@@ -182,6 +183,28 @@ async def cmd_likes(message: types.Message, state: FSMContext):
 
     # 4) Показываем первую анкету
     await show_liked_profile(message, state)
+
+@common_router.message(Command("matches"))
+async def cmd_matches(message: Message, state: FSMContext):
+    user_id = message.from_user.id
+    match_ids = db.get_matches(user_id)  # из database.db
+
+    if not match_ids:
+        # если нет ни одного матча
+        profile = db.get_profile(user_id)
+        await message.answer(
+            "У вас пока нет матчей.",
+            reply_markup=build_menu_keyboard(profile["gender"])
+        )
+        await state.set_state(ProfileStates.MENU)
+        return
+
+    # сохраняем в FSM
+    await state.update_data(match_ids=match_ids, match_index=0)
+    await state.set_state(ProfileStates.MATCHES)
+
+    # сразу показываем первый матч
+    await show_match_profile(message, state)
 
 @common_router.message(Command("menu"))
 async def cmd_menu(message: types.Message, state: FSMContext, bot : Bot):

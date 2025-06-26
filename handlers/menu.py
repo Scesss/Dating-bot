@@ -61,14 +61,15 @@ async def process_choose(message: types.Message, state: FSMContext):
             current_user_id    = message.from_user.id,
             current_gender     = my_profile['gender'],
             current_preference = my_profile['looking_for'],
-            user_lat           = my_profile['lat'],
-            user_lon           = my_profile['lon']
+            current_lat        = my_profile['lat'],
+            current_lon        = my_profile['lon']
         )
         if result:
-            text = (f"{result['name']}, {result['age']}, {result.get('city') or 'Не указан'}, ")
+            text = (f"{result['name']}, {result['age']}, {result.get('city') or 'Не указан'}")
             if result['distance_km'] is not None:
-                text += f"📍 {result['distance_km']} км"
-            text += f"\n\n{result['bio'][:200]}"
+                text += f", 📍 {result['distance_km']:.1f} км"
+            text += (f"\n\n{result['bio'][:200]}\n\n"
+                    f" 🪙 {result['balance']}, топ 2228")
         # Ограничим био ~300 символов, чтобы не перегружать сообщение
             try:
                 if result.get('photo_id'):
@@ -130,8 +131,8 @@ async def show_next_profile(event: CallbackQuery | Message, state: FSMContext):
             current_user_id    = user_id,
             current_gender     = gender,
             current_preference = preference,
-            user_lat           = lat,
-            user_lon           = lon
+            current_lat        = lat,
+            current_lon        = lon
         )
     except Exception as e:
         logger.error(f"Ошибка get_next_profile: {e}")
@@ -140,8 +141,8 @@ async def show_next_profile(event: CallbackQuery | Message, state: FSMContext):
 
     # 5) Проверка результата
     if not result:
-        await send_text("😢 Больше анкет не найдено.")
-        await state.clear()
+        await send_text("😢 Больше анкет не найдено. ⏳ Возвращаем в меню...", reply_markup=build_menu_keyboard(gender))
+        await state.set_state(ProfileStates.MENU)
         return
 
     # 6) Подготовка полей
@@ -152,10 +153,7 @@ async def show_next_profile(event: CallbackQuery | Message, state: FSMContext):
 
     # distance_km может быть None
     dist = result.get("distance_km")
-    if dist is None:
-        distance_str = "🚗 расстояние неизвестно"
-    else:
-        distance_str = f"🚗 {dist:.1f} км"
+    
 
     # balance может быть None
     balance = result.get("balance")
@@ -168,15 +166,11 @@ async def show_next_profile(event: CallbackQuery | Message, state: FSMContext):
     bio_str = f"\n{bio}" if bio else ""
 
     # 7) Собираем текст
-    text = (
-        f"👤 {name}, {age}\n"
-        f"💖 Ищет: {looking_for}\n"
-        f"📍 Город: {city}\n"
-        f"{distance_str}\n"
-        f"{balance_str}"
-        f"{bio_str}"
-    )
-
+    text = (f"{result['name']}, {result['age']}, {result.get('city') or 'Не указан'}")
+    if result['distance_km'] is not None:
+        text += f", 📍 {result['distance_km']:.1f} км"
+    text += (f"\n\n{result['bio'][:200]}\n\n"
+             f" 🪙 {result['balance']}, топ 2228")
     # 8) Клавиатура
     kb = get_browse_keyboard(result["user_id"])
 

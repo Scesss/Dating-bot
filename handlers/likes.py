@@ -67,12 +67,46 @@ async def on_like_accept(call: CallbackQuery, state: FSMContext):
     await show_liked_profile(call, state)
     await call.answer()
 
+@router.callback_query(
+     StateFilter(ProfileStates.LIKES),
+     F.data.startswith("likes_decline:")
+)
+async def on_like_decline(call: CallbackQuery, state: FSMContext):
+    data   = await state.get_data()
+    likers = data.get("liked_ids", [])
+    idx    = data.get("likes_index", 0) + 1
+    me     = call.from_user.id
+    target = int(call.data.split(":", 1)[1])
+
+    # Сохраняем дизлайк
+    add_dislike(me, target)
+    await call.answer("❌ Вы отклонили этот лайк")
+
+    # Если это был последний — возвращаем в меню
+    if idx >= len(likers):
+        await state.set_state(ProfileStates.MENU)
+        try:
+            await call.message.delete()
+        except TelegramBadRequest:
+            pass
+        # Возвращаем главное меню (поменяйте build_menu_keyboard на ваш импорт)
+        await call.message.answer(
+            "Анкеты закончились ⏳ Возвращаемся в меню…",
+            reply_markup=build_menu_keyboard(
+                db.get_profile(me).get("gender", "Парень")
+            )
+        )
+        return
+
+    # Иначе — показываем следующую анкету из likes
+    await state.update_data(likes_index=idx)
+    await show_liked_profile(call, state)
 
 @router.callback_query(
     StateFilter(ProfileStates.BROWSING),
     F.data.startswith("dislike:")
 )
-async def on_like_decline(call: CallbackQuery, state: FSMContext):
+async def dislike_simple(call: CallbackQuery, state: FSMContext):
     me = call.from_user.id
     target = int(call.data.split(":", 1)[1])
     # Запишем дизлайк
@@ -81,7 +115,6 @@ async def on_like_decline(call: CallbackQuery, state: FSMContext):
     # показать следующий профиль
     await show_next_profile(call, state)
     
-
 # Простой лайк (как было раньше)
 @router.callback_query(ProfileStates.BROWSING, F.data.startswith("like_simple:"))
 async def like_simple(call: CallbackQuery, state: FSMContext):

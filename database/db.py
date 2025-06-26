@@ -218,19 +218,34 @@ class Database:
 
     def get_liked_by(self, user_id: int) -> list[dict]:
         """Кто лайкнул меня: возвращаем профиль + текст и сумму лайка."""
-        self.cursor.execute(
-            """
-            SELECT 
-              u.*,
-              l.message   AS like_message,
-              l.amount    AS like_amount
-            FROM users u
-            JOIN likes l 
-              ON l.user_id = u.user_id
-             AND l.liked_user_id = %s
-            """,
-            (user_id,)
-        )
+        self.cursor.execute("""
+            SELECT
+            u.user_id,
+            u.name,
+            u.age,
+            u.gender,
+            u.looking_for,
+            u.balance,
+            u.city,
+            u.bio,
+            u.photo_id,
+            l.message   AS like_message,
+            l.amount    AS like_amount,
+            ROUND(
+                (6371 * acos(
+                    cos(radians(me.lat)) *
+                    cos(radians(u.lat)) *
+                    cos(radians(u.lon) - radians(me.lon)) +
+                    sin(radians(me.lat)) *
+                    sin(radians(u.lat))
+                ))::numeric
+            , 1
+            )::double precision AS distance_km
+            FROM likes l
+            JOIN users u  ON l.user_id        = u.user_id
+            JOIN users me ON me.user_id       = l.liked_user_id
+            WHERE l.liked_user_id = %(user_id)s
+        """, {"user_id": user_id})
         return [dict(row) for row in self.cursor.fetchall()]
 
     def add_like(self, user_id: int, liked_user_id: int, message: str | None = None,
@@ -377,6 +392,7 @@ class Database:
             'wanted_looking_for': wanted_looking_for,
             'current_lat': current_lat,
             'current_lon': current_lon
+
         }
         self.cursor.execute(sql, params)
         return self.cursor.fetchone()
@@ -510,7 +526,9 @@ def get_next_profile(*args, **kwargs) -> dict | None:
     return _db.get_next_profile(
         current_user_id=kwargs.get('current_user_id'),
         current_gender=kwargs.get('current_gender'),
-        current_preference=kwargs.get('current_preference')
+        current_preference=kwargs.get('current_preference'),
+        current_lat= kwargs.get('current_lat'),
+        current_lon= kwargs.get('current_lon')
     )
 
 def add_dislike(user_id: int, disliked_user_id: int):
