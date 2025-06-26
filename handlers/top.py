@@ -47,15 +47,20 @@ async def show_top_profile(
     if prof.get("photo_id"):
         if is_query:
             # редактируем текущее сообщение с фото
-            await message_or_query.message.edit_caption(
-                caption=text,
-                reply_markup=kb
+            await message_or_query.message.edit_media(
+                media=InputMediaPhoto(
+                    media=prof["photo_id"],
+                    caption=text
+                ),
+                reply_markup=kb,
+                parse_mode = None
             )
         else:
             await message_or_query.answer_photo(
                 photo=prof["photo_id"],
                 caption=text,
-                reply_markup=kb
+                reply_markup=kb,
+                parse_mode  = None
             )
     else:
         if is_query:

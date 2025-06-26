@@ -126,7 +126,7 @@ async def process_edit_age(message: types.Message, state: FSMContext):
             await message.answer("Изменение отменено.", reply_markup=types.ReplyKeyboardRemove())
             await message.answer_photo(profile['photo_id'],
                                        caption=generate_profile_caption(profile),
-                                       reply_markup=get_edit_menu_kb())
+                                       reply_markup=get_edit_menu_kb(), parse_mode  = None)
         await state.set_state(ProfileStates.EDIT_PROFILE)
         return
     if not message.text.isdigit():
@@ -142,7 +142,7 @@ async def process_edit_age(message: types.Message, state: FSMContext):
     if profile:
         await message.answer_photo(profile['photo_id'],
                                    caption=generate_profile_caption(profile),
-                                   reply_markup=get_edit_menu_kb())
+                                   reply_markup=get_edit_menu_kb(), parse_mode  = None)
     await state.set_state(ProfileStates.EDIT_PROFILE)
 
 
@@ -161,7 +161,7 @@ async def process_edit_bio(message: types.Message, state: FSMContext):
             await message.answer("Изменение отменено.", reply_markup=types.ReplyKeyboardRemove())
             await message.answer_photo(profile['photo_id'],
                                        caption=generate_profile_caption(profile),
-                                       reply_markup=get_edit_menu_kb())
+                                       reply_markup=get_edit_menu_kb(), parse_mode  = None)
         await state.set_state(ProfileStates.EDIT_PROFILE)
         return
     bio_text = message.text.strip()
@@ -174,7 +174,7 @@ async def process_edit_bio(message: types.Message, state: FSMContext):
     if profile:
         await message.answer_photo(profile['photo_id'],
                                    caption=generate_profile_caption(profile),
-                                   reply_markup=get_edit_menu_kb())
+                                   reply_markup=get_edit_menu_kb(), parse_mode  = None)
     await state.set_state(ProfileStates.EDIT_PROFILE)
 
 
@@ -197,7 +197,7 @@ async def process_edit_photo(message: types.Message, state: FSMContext):
     if profile:
         await message.answer_photo(profile['photo_id'],
                                    caption=generate_profile_caption(profile),
-                                   reply_markup=get_edit_menu_kb())
+                                   reply_markup=get_edit_menu_kb(), parse_mode  = None)
     await state.set_state(ProfileStates.EDIT_PROFILE)
     logger.info(profile['photo_id'])
 

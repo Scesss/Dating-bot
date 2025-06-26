@@ -201,7 +201,8 @@ async def show_confirmation(message: types.Message, state: FSMContext):
         await message.answer_photo(
             photo=data['photo_id'],
             caption=confirmation_text,
-            reply_markup=build_confirmation_keyboard()
+            reply_markup=build_confirmation_keyboard(),
+            parse_mode  = None
         )
     else:
         await message.answer(

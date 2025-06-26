@@ -7,8 +7,9 @@ from database import db
 from states.profile_states import ProfileStates
 from database.db import get_matches, get_profile
 from keyboards.builders import *
-# from keyboards.builders import build_match_keyboard
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from utils.geo import calculate_distance
+
 import logging
 logger = logging.getLogger(__name__)
 
@@ -22,11 +23,20 @@ async def show_match_profile(src, state: FSMContext):
     target = mids[idx]
     prof = get_profile(target)
     user_id = prof["user_id"]
+    me = get_profile(src.from_user.id)
+
+    if me.get("lat") and prof.get("lat") and me.get("lon") and prof.get("lon"):
+        
+        prof["distance_km"] = calculate_distance(
+            me["lat"], me["lon"], prof["lat"], prof["lon"]
+        )
+    else:
+        prof["distance_km"] = None
 
     if len(mids) > 1:
         kb = build_match_keyboard(user_id)
     else:
-        from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+        
         kb = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(
                 text="💌 Написать этому человеку",
@@ -38,11 +48,13 @@ async def show_match_profile(src, state: FSMContext):
             )]
         ])
 
-    caption = (f"{prof['name']}, "
-               f"{prof['age']}, "
-               f"{prof['city'] or 'Не указан'}\n\n"
-               f" {prof['bio'][:1000]}\n\n"
-               f" 🪙 {prof['balance']}, топ 2228")
+    caption = f"{prof['name']}, {prof['age']}, {prof.get('city') or 'Не указан'}"
+    if prof.get("distance_km") is not None:
+        caption += f", 📍 {prof['distance_km']:.1f} км"
+    caption += (
+        f"\n\n{prof.get('bio', '')[:1000]}\n\n"
+        f" 🪙 {prof['balance']}, топ 2228"
+    )
     logger.info(
         "Showing match profile — user_id=%s, name=%s, age=%s, gender=%s",
         user_id,
@@ -56,12 +68,13 @@ async def show_match_profile(src, state: FSMContext):
             photo=prof["photo_id"],
             caption=caption,
             reply_markup=kb,
-            parse_mode="MarkdownV2"
+            parse_mode  = None
         )
     else:
         await src.message.edit_media(
             InputMediaPhoto(media=prof["photo_id"], caption=caption, parse_mode="MarkdownV2"),
             reply_markup=kb,
+            parse_mode  = None
         )
 
 @router.callback_query(

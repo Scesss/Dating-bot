@@ -25,6 +25,8 @@ async def on_like_accept(call: CallbackQuery, state: FSMContext):
     target = int(call.data.split(":", 1)[1])
     # 1) Запишем свой лайк
     add_like(me, target)
+    # +1 за ответ на лайк
+    change_balance(me, 1)
     # 2) Если взаимный — заматчим
     if user_liked(target, me):
         add_match(me, target)
@@ -120,6 +122,10 @@ async def dislike_simple(call: CallbackQuery, state: FSMContext):
 async def like_simple(call: CallbackQuery, state: FSMContext):
     target = int(call.data.split(":")[1])
     add_like(call.from_user.id, target)
+    # +1 за то, что ставишь лайк
+    change_balance(call.from_user.id, 1)
+    # +5 тому, кто получает лайк
+    change_balance(target, 5)
     
     if db.user_liked(target, call.from_user.id):
         # Получаем имя оппонента для сообщения (можно было передать через callback или хранить в FSM данные текущей анкеты)
@@ -133,7 +139,6 @@ async def like_simple(call: CallbackQuery, state: FSMContext):
             target,
             f"❤️ У вас {unseen} непросмотренных лайков!"
         )
-    change_balance(call.from_user.id, 0)  # здесь можно оставить для статистики
     await call.answer()
     # показать следующий профиль
     await show_next_profile(call, state)
@@ -153,6 +158,10 @@ async def like_with_msg(msg: Message, state: FSMContext):
     target = data["liked_user_id"]
     text   = msg.text[:500]  # обрезаем, если слишком много
     add_like(msg.from_user.id, target, message=text)
+    # +2 за лайк с сообщением
+    change_balance(msg.from_user.id, 2)
+    # +7 тому, кто получает лайк с сообщением
+    change_balance(target, 7)
     # уведомляем получателя
     if db.user_liked(target, msg.from_user.id):
         # Получаем имя оппонента для сообщения (можно было передать через callback или хранить в FSM данные текущей анкеты)
@@ -199,6 +208,10 @@ async def like_with_cash(msg: Message, state: FSMContext):
     # списываем с отправителя и зачисляем получателю
     change_balance(msg.from_user.id, -amount)
     change_balance(target, amount)
+    # +2 за то, что ставишь лайк с валютой
+    change_balance(msg.from_user.id, 2)
+    # +7 за получение такого лайка
+    change_balance(target, 7)
     add_like(msg.from_user.id, target, amount=amount)
 
     if db.user_liked(target, msg.from_user.id):

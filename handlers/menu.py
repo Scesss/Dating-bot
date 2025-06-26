@@ -38,7 +38,7 @@ async def process_choose(message: types.Message, state: FSMContext):
                    f" 🪙 {profile['balance']}, топ 2228")
             if profile.get('photo_id'):
                 await message.answer_photo(profile['photo_id'], caption=caption,
-                                   reply_markup=get_edit_menu_kb())
+                                   reply_markup=get_edit_menu_kb(), parse_mode  = None)
             else:
                 await message.answer(caption, reply_markup=get_edit_menu_kb())
         else:
@@ -73,7 +73,7 @@ async def process_choose(message: types.Message, state: FSMContext):
         # Ограничим био ~300 символов, чтобы не перегружать сообщение
             try:
                 if result.get('photo_id'):
-                    await message.answer_photo(result['photo_id'], caption=text, reply_markup=get_browse_keyboard(result['user_id']))
+                    await message.answer_photo(result['photo_id'], caption=text, reply_markup=get_browse_keyboard(result['user_id']), parse_mode  = None)
                 else:
                     await message.answer(text,
                              reply_markup=get_browse_keyboard(result['user_id']))

@@ -437,18 +437,6 @@ class Database:
         )
         self.conn.commit()
 
-    def award_given_like(self, giver_id: int):
-        self.change_balance(giver_id, 2)
-
-    def award_given_dislike(self, giver_id: int):
-        self.change_balance(giver_id, 1)
-
-    def award_received_like(self, receiver_id: int):
-        self.change_balance(receiver_id, 5)
-
-    def award_received_dislike(self, receiver_id: int):
-        self.change_balance(receiver_id, 2)
-
     def sleep_profile(self, user_id: int):
         """
         Затирает bio и заменяет фото на пустую-заглушку.

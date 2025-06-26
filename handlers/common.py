@@ -40,7 +40,7 @@ async def show_profile_info(message: types.Message, profile: dict, for_self: boo
 
     try:
         if profile.get('photo_id'):
-            await message.answer_photo(profile['photo_id'], caption=caption)
+            await message.answer_photo(profile['photo_id'], caption=caption, parse_mode  = None)
         else:
             await message.answer(caption)
     except Exception as e:
@@ -103,7 +103,7 @@ async def cmd_profile(message: types.Message, state: FSMContext, bot : Bot):
         f" 🪙 {profile['balance']}, топ 2228")
         if profile.get('photo_id'):
             await message.answer_photo(profile['photo_id'], caption=caption,
-            reply_markup=get_edit_menu_kb())
+            reply_markup=get_edit_menu_kb(), parse_mode  = None)
         else:
             await message.answer(caption, reply_markup=get_edit_menu_kb())
     else:
@@ -145,11 +145,12 @@ async def show_liked_profile(src: Union[Message, CallbackQuery], state: FSMConte
         ]]
     )
     if isinstance(src, Message):
-        await src.answer_photo(photo=prof["photo_id"], caption=text, reply_markup=kb)
+        await src.answer_photo(photo=prof["photo_id"], caption=text, reply_markup=kb, parse_mode  = None)
     else:  # CallbackQuery
         await src.message.edit_media(
             InputMediaPhoto(media=prof["photo_id"], caption=text),
-            reply_markup=kb
+            reply_markup=kb,
+            parse_mode  = None
         )
 
 @common_router.message(Command("likes"))
@@ -251,7 +252,8 @@ async def cmd_menu(message: types.Message, state: FSMContext, bot : Bot):
             await message.answer_photo(
                 photo=profile["photo_id"],
                 caption=text,
-                reply_markup=menu_kb
+                reply_markup=menu_kb,
+                parse_mode  = None
             )
         else:
             await message.answer(
