@@ -9,6 +9,7 @@ from database.db import get_matches, get_profile
 from keyboards.builders import *
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from utils.geo import calculate_distance
+from aiogram.exceptions import TelegramBadRequest
 
 import logging
 logger = logging.getLogger(__name__)
@@ -47,13 +48,13 @@ async def show_match_profile(src, state: FSMContext):
                 callback_data="exit_matches"
             )]
         ])
-
+    rank = db.get_user_rank(prof['user_id'])
     caption = f"{prof['name']}, {prof['age']}, {prof.get('city') or 'Не указан'}"
     if prof.get("distance_km") is not None:
         caption += f", 📍 {prof['distance_km']:.1f} км"
     caption += (
         f"\n\n{prof.get('bio', '')[:1000]}\n\n"
-        f" 🪙 {prof['balance']}, топ 2228"
+        f" 🪙 {prof['balance']}, топ {rank}"
     )
     logger.info(
         "Showing match profile — user_id=%s, name=%s, age=%s, gender=%s",
@@ -71,11 +72,22 @@ async def show_match_profile(src, state: FSMContext):
             parse_mode  = None
         )
     else:
-        await src.message.edit_media(
-            InputMediaPhoto(media=prof["photo_id"], caption=caption, parse_mode="MarkdownV2"),
-            reply_markup=kb,
-            parse_mode  = None
-        )
+        try:
+            await src.message.edit_media(
+                InputMediaPhoto(
+                    media=prof["photo_id"],
+                    caption=caption,
+                    parse_mode=None
+                ),
+                reply_markup=kb,
+                parse_mode=None
+            )
+        except TelegramBadRequest as e:
+            # игнорируем ошибку, когда контент не изменился
+            if "message is not modified" in str(e):
+                return
+            # все остальные пробрасываем дальше
+            raise
 
 @router.callback_query(
     StateFilter(ProfileStates.MATCHES),

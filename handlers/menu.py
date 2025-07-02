@@ -31,11 +31,12 @@ async def process_choose(message: types.Message, state: FSMContext):
         profile = db.get_profile(message.from_user.id)
         if profile:
         # Отправляем фото+данные профиля с инлайн-кнопками редактирования
+            rank = db.get_user_rank(profile['user_id'])
             caption = (f"{profile['name']}, "
                    f"{profile['age']}, "
                    f"{profile['city'] or 'Не указан'}\n\n"
                    f" {profile['bio'][:1000]}\n\n"
-                   f" 🪙 {profile['balance']}, топ 2228")
+                   f" 🪙 {profile['balance']}, топ {rank}")
             if profile.get('photo_id'):
                 await message.answer_photo(profile['photo_id'], caption=caption,
                                    reply_markup=get_edit_menu_kb(), parse_mode  = None)
@@ -65,11 +66,12 @@ async def process_choose(message: types.Message, state: FSMContext):
             current_lon        = my_profile['lon']
         )
         if result:
+            rank = db.get_user_rank(profile['user_id'])
             text = (f"{result['name']}, {result['age']}, {result.get('city') or 'Не указан'}")
             if result['distance_km'] is not None:
                 text += f", 📍 {result['distance_km']:.1f} км"
             text += (f"\n\n{result['bio'][:200]}\n\n"
-                    f" 🪙 {result['balance']}, топ 2228")
+                    f" 🪙 {result['balance']}, топ {rank}")
         # Ограничим био ~300 символов, чтобы не перегружать сообщение
             try:
                 if result.get('photo_id'):
@@ -82,7 +84,7 @@ async def process_choose(message: types.Message, state: FSMContext):
         else:
             profile = db.get_profile(message.from_user.id)
             gender = profile['gender']
-            await message.answer("Сейчас нет анкет, соответствующих вашим параметрам.", reply_markup=build_menu_keyboard(gender))
+            await message.answer("😢 Больше анкет не найдено. ⏳ Возвращаем в меню...", reply_markup=build_menu_keyboard(gender))
             await state.set_state(ProfileStates.MENU)
     elif message.text == "🌙 Сон":
         return await message.answer("Пока нет такой функции")
@@ -169,8 +171,9 @@ async def show_next_profile(event: CallbackQuery | Message, state: FSMContext):
     text = (f"{result['name']}, {result['age']}, {result.get('city') or 'Не указан'}")
     if result['distance_km'] is not None:
         text += f", 📍 {result['distance_km']:.1f} км"
+    rank = db.get_user_rank(result['user_id'])
     text += (f"\n\n{result['bio'][:200]}\n\n"
-             f" 🪙 {result['balance']}, топ 2228")
+             f" 🪙 {result['balance']}, топ {rank}")
     # 8) Клавиатура
     kb = get_browse_keyboard(result["user_id"])
 

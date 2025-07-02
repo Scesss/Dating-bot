@@ -171,24 +171,24 @@ def build_top_navigation_keyboard(
     """
 
     if current_index == 0:
-        # первый профиль
+        # первый профиль — показываем только «вперёд»
         kb = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="⬇️",            callback_data="top:prev")],
+            [InlineKeyboardButton(text="⬇️",            callback_data="top:next")],
             [InlineKeyboardButton(text="◀ Завершить просмотр", callback_data="top:exit")]
         ])
 
     elif current_index == total - 1:
-        # последний профиль
+        # последний профиль — показываем только «назад»
         kb = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="⬆️", callback_data="top:next")],
+            [InlineKeyboardButton(text="⬆️", callback_data="top:prev")],
             [InlineKeyboardButton(text="◀ Завершить просмотр", callback_data="top:exit")]
         ])
 
     else:
         # любой профиль между первым и последним
         kb = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="⬇️", callback_data="top:prev"),
-             InlineKeyboardButton(text="⬆️", callback_data="top:next")],
+            [InlineKeyboardButton(text="⬆️", callback_data="top:prev")],
+            [InlineKeyboardButton(text="⬇️", callback_data="top:next")],
             [InlineKeyboardButton(text="◀ Завершить просмотр", callback_data="top:exit")]
         ])
 

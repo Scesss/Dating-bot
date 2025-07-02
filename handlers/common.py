@@ -13,6 +13,7 @@ from aiogram.types import InputMediaPhoto
 from handlers.edit_profile import *
 from database.db import user_disliked
 from .matches import show_match_profile
+from handlers.menu import show_next_profile
 
 # … остальные импорты …
 
@@ -24,18 +25,28 @@ logger = logging.getLogger(__name__)
 # Create router for common commands
 common_router = Router()
 
+@router.message(Command("search"))
+async def cmd_search(message: Message, state: FSMContext):
+    """
+    /search — то же, что просмотр анкет из меню.
+    """
+    # Сбрасываем всё и запускаем показ первой анкеты
+    await state.clear()
+    await message.answer("🔍 Начинаем поиск анкет...")
+    # Просто вызываем ту же функцию, что и при просмотре из меню
+    await show_next_profile(message, state)
 
 
 async def show_profile_info(message: types.Message, profile: dict, for_self: bool = True) -> [[int], [list]]:
     """Отправляет сообщение с информацией анкеты.
     profile – словарь с данными профиля из БД."""
     # Собираем текст
-
+    rank = db.get_user_rank(profile['user_id'])
     caption = (f"{profile['name']}, "
                f"{profile['age']}, "
                f"{profile['city'] or 'Не указан'}\n\n"
                f" {profile['bio'][:1000]}\n\n"
-               f" 🪙 {profile['balance']}, топ 2228")
+               f" 🪙 {profile['balance']}, топ {rank}")
     # Отправляем фото с подписью, если есть фото
 
     try:
@@ -96,11 +107,12 @@ async def cmd_profile(message: types.Message, state: FSMContext, bot : Bot):
         await message.answer("⏳ Открываем твою анкету...",
                          reply_markup=types.ReplyKeyboardRemove())
         # Отправляем фото+данные профиля с инлайн-кнопками редактирования
+        rank = db.get_user_rank(profile['user_id'])
         caption = (f"{profile['name']}, "
         f"{profile['age']}, "
         f"{profile['city'] or 'Не указан'}\n\n"
         f" {profile['bio'][:1000]}\n\n"
-        f" 🪙 {profile['balance']}, топ 2228")
+        f" 🪙 {profile['balance']}, топ {rank}")
         if profile.get('photo_id'):
             await message.answer_photo(profile['photo_id'], caption=caption,
             reply_markup=get_edit_menu_kb(), parse_mode  = None)
@@ -118,12 +130,12 @@ async def show_liked_profile(src: Union[Message, CallbackQuery], state: FSMConte
     prof   = likers[idx]           # сразу берём всю запись профиля + like_message + like_amount
     target_id = prof["user_id"]
 
-    
+    rank = db.get_user_rank(prof['user_id'])
     text = (f"{prof['name']}, {prof['age']}, {prof.get('city') or 'Не указан'}")
     if prof.get("distance_km") is not None:
         text += f", 📍 {prof['distance_km']:.1f} км"
     text += (f"\n\n{prof['bio'][:200]}\n\n"
-                    f" 🪙 {prof['balance']}, топ 2228")
+                    f" 🪙 {prof['balance']}, топ {rank}")
     
     # если был текстовый лайк
     if prof.get("like_amount"):
@@ -238,11 +250,12 @@ async def cmd_menu(message: types.Message, state: FSMContext, bot : Bot):
         await state.set_state(ProfileStates.MENU)
         user_id = message.from_user.id
         profile = get_profile(user_id)
+        rank = db.get_user_rank(profile['user_id'])
         text = (f"{profile['name']}, "
                    f"{profile['age']}, "
                    f"{profile['city'] or 'Не указан'}\n\n"
                    f" {profile['bio'][:1000]}\n\n"
-                   f" 🪙 {profile['balance']}, топ 2228")
+                   f" 🪙 {profile['balance']}, топ {rank}")
         await message.answer(
             text="⏳ Загружаю ваш профиль…", 
             reply_markup=ReplyKeyboardRemove()

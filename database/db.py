@@ -452,6 +452,19 @@ class Database:
         )
         self.conn.commit()
 
+    def get_user_rank(self, user_id: int) -> int:
+        """
+        Возвращает место пользователя в списке всех анкет,
+        отсортированных по полю balance DESC.
+        """
+        # Получаем список всех user_id в порядке убывания баланса
+        profiles = self.get_all_profiles_sorted_by_balance()
+        for idx, prof in enumerate(profiles):
+            if prof["user_id"] == user_id:
+                return idx + 1
+        # Если вдруг нет в списке — поместим в самый конец
+        return len(profiles) + 1
+
 # Модульный интерфейс для простого импорта
 _db = Database()
 
@@ -563,3 +576,10 @@ def get_liked_by(user_id: int) -> list[dict]:
 
 def get_matches(user_id: int) -> list[dict]:
     return _db.get_matches(user_id)
+
+def get_user_rank(user_id: int) -> int:
+    """
+    Модульная обёртка для Database.get_user_rank — чтобы из handlers/common.py
+    можно было вызывать db.get_user_rank(...)
+    """
+    return _db.get_user_rank(user_id)

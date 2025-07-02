@@ -36,11 +36,12 @@ async def show_top_profile(
     prof = profiles[idx]
 
     # формируем текст
+    rank = db.get_user_rank(prof['user_id'])
     text = (f"{prof['name']}, "
                f"{prof['age']}, "
                f"{prof['city'] or 'Не указан'}\n\n"
                f" {prof['bio'][:1000]}\n\n"
-               f" 🪙 {prof['balance']}, топ 2228")
+               f" 🪙 {prof['balance']}, топ {rank}")
 
     kb = build_top_navigation_keyboard(idx, len(profiles))
 
