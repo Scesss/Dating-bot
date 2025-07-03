@@ -9,6 +9,7 @@ from utils.navigation import Navigation
 from database import db
 import logging
 from aiogram.filters import Command
+from services.geocoding import get_city_name_from_query
 
 logger = logging.getLogger(__name__)
 router = Router()
@@ -160,10 +161,24 @@ async def process_location(message: types.Message, state: FSMContext):
     elif message.text and message.text == "🚫 Пропустить":
         await message.answer("Определение местоположения пропущено, рекомендации могут быть менее точными...")
 
-    # Handle text input for city name
-    elif message.text and await is_valid_city(message.text):
-        # Simple validation
-        city_name = message.text
+    elif message.text:
+        # сначала проверяем, что это вообще город
+        ok = await is_valid_city(message.text)
+        if not ok:
+            await message.answer(
+                "❌ Не удалось распознать город. Попробуйте, например, «Москва» или "
+                "отправьте геолокацию через кнопку."
+            )
+            return
+
+        # получаем каноническое название из геокодера
+        canon = await get_city_name_from_query(message.text)
+        if canon:
+            city_name = canon
+        else:
+            # на случай, если что-то пошло не так — всё равно сохраним user input
+            city_name = message.text.title()
+
         await message.answer(f"✅ Город сохранён: {city_name}")
 
     else:

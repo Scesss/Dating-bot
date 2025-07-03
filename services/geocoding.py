@@ -84,3 +84,40 @@ async def is_valid_city(city_query: str) -> bool:
 
     # любое попадание считаем корректным городом
     return True
+
+async def get_city_name_from_query(city_query: str) -> str | None:
+    """
+    Делает геокодинг по строке запроса и возвращает каноническое название
+    (из поля GeoObject.name). Если ничего не нашлось — возвращает None.
+    """
+    api_key = Config.YANDEX_GEOCODER_API_KEY
+    if not api_key:
+        logger.error("Yandex Geocoder API key not configured")
+        return None
+
+    url = "https://geocode-maps.yandex.ru/1.x/"
+    params = {
+        "apikey": api_key,
+        "format": "json",
+        "lang": "ru_RU",
+        "results": 1,
+        "geocode": city_query
+    }
+    try:
+        resp = httpx.get(url, params=params, timeout=5.0)
+        resp.raise_for_status()
+        data = resp.json()
+        features = (
+            data.get("response", {})
+                .get("GeoObjectCollection", {})
+                .get("featureMember", [])
+        )
+        if not features:
+            return None
+
+        # Берём первое GeoObject и его name
+        geo = features[0].get("GeoObject", {})
+        return geo.get("name")
+    except Exception as e:
+        logger.error(f"Geocoding error for text '{city_query}': {e}")
+        return None
