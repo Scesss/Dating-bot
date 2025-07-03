@@ -168,6 +168,11 @@ async def process_edit_bio(message: types.Message, state: FSMContext):
     if len(bio_text) > 1000:
         await message.answer("❌ Слишком длинный текст. Максимум 1000 символов.")
         return
+    if message.entities:
+        for ent in message.entities:
+            if ent.type in ("url", "text_link", "mention", "text_mention"):
+                return await message.answer("❌ Текст не должен содержать ссылок или @-тегов.")
+
     db.update_profile_field(message.from_user.id, 'bio', bio_text)
     await message.answer("✅ Описание обновлено.", reply_markup=types.ReplyKeyboardRemove())
     profile = db.get_profile(message.from_user.id)

@@ -10,6 +10,7 @@ from database import db
 import logging
 from aiogram.filters import Command
 from services.geocoding import get_city_name_from_query
+from aiogram.types import MessageEntity
 
 logger = logging.getLogger(__name__)
 router = Router()
@@ -25,6 +26,12 @@ async def process_name(message: types.Message, state: FSMContext, bot : Bot):
 
     if len(message.text) < 2:
         return await message.answer("❌ Имя не может быть короче двух букв")
+    
+    if message.entities:
+        for ent in message.entities:
+            if ent.type in ("url", "text_link", "mention", "text_mention"):
+                return await message.answer("❌ Имя не должно содержать ссылок или @-тегов.")
+    
     await state.update_data(name=message.text)
     await message.answer("❔ Сколько тебе лет?", reply_markup=build_back_keyboard())
     await state.set_state(ProfileStates.AGE)
@@ -102,6 +109,12 @@ async def process_bio(message: types.Message, state: FSMContext):
     #
     if len(message.text) > 1000:
         return await message.answer("❌ Ваше сообщение не должно быть длиннее 1000 символов.")
+    
+    # аналогично: блокируем любые url и теги
+    if message.entities:
+        for ent in message.entities:
+            if ent.type in ("url", "text_link", "mention", "text_mention"):
+                return await message.answer("❌ Биография не должна содержать ссылок или @-тегов.")
 
     await state.update_data(bio=message.text)
     await message.answer("📸 Твое фото?", reply_markup=build_back_keyboard())
