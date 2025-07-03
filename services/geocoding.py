@@ -59,7 +59,7 @@ async def is_valid_city(city_query: str) -> bool:
         "apikey": api_key,
         "format": "json",
         "lang": "ru_RU",
-        "kind": "locality",  # нас интересуют только населённые пункты
+        # убираем жёсткую фильтрацию по kind — пусть вернёт любой объект
         "results": 1,
         "geocode": city_query
     }
@@ -78,18 +78,9 @@ async def is_valid_city(city_query: str) -> bool:
             .get("GeoObjectCollection", {})
             .get("featureMember", [])
     )
+    # если нет ни одного GeoObject — город не распознан
     if not features:
         return False
 
-    # Проверяем, что хотя бы один результат имеет kind='locality'
-    for member in features:
-        kind = (
-            member.get("GeoObject", {})
-                  .get("metaDataProperty", {})
-                  .get("GeocoderMetaData", {})
-                  .get("kind")
-        )
-        if kind == "locality":
-            return True
-
-    return False
+    # любое попадание считаем корректным городом
+    return True
