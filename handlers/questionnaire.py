@@ -11,12 +11,15 @@ import logging
 from aiogram.filters import Command
 from services.geocoding import get_city_name_from_query
 from aiogram.types import MessageEntity
+import secrets
 
 logger = logging.getLogger(__name__)
 router = Router()
 
 # Handle name
-
+def generate_referral_code() -> str:
+    # 8 URL-безопасных символов, например "A1b2C3d4"
+    return secrets.token_urlsafe(8)
 
 @router.message(StateFilter(ProfileStates.NAME))
 async def process_name(message: types.Message, state: FSMContext, bot : Bot):

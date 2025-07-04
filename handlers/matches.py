@@ -18,6 +18,7 @@ router = Router()
 
 @router.message(StateFilter(ProfileStates.MATCHES))
 async def show_match_profile(src, state: FSMContext):
+
     data = await state.get_data()
     idx   = data["match_index"]
     mids  = data["match_ids"]

@@ -14,7 +14,7 @@ from handlers.edit_profile import *
 from database.db import user_disliked
 from .matches import show_match_profile
 from handlers.menu import show_next_profile
-
+import secrets
 # … остальные импорты …
 
 
@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 # Create router for common commands
 common_router = Router()
+
 
 @router.message(Command("search"))
 async def cmd_search(message: Message, state: FSMContext):
@@ -61,6 +62,8 @@ async def show_profile_info(message: types.Message, profile: dict, for_self: boo
 
 @common_router.message(Command("start"))
 async def cmd_start(message: types.Message, state: FSMContext, bot : Bot):
+    args = message.get_args()
+
 
     await state.clear()
     user_id = message.from_user.id
@@ -206,7 +209,7 @@ async def cmd_matches(message: Message, state: FSMContext):
         # если нет ни одного матча
         profile = db.get_profile(user_id)
         await message.answer(
-            "У вас пока нет матчей.",
+            "У вас пока нет мэтчей.",
             reply_markup=build_menu_keyboard(profile["gender"])
         )
         await state.set_state(ProfileStates.MENU)
@@ -217,6 +220,8 @@ async def cmd_matches(message: Message, state: FSMContext):
     await state.set_state(ProfileStates.MATCHES)
 
     # сразу показываем первый матч
+    await message.answer("⏳ Открываем мэтчи...",
+                         reply_markup=types.ReplyKeyboardRemove())
     await show_match_profile(message, state)
 
 @common_router.message(Command("menu"))
@@ -278,6 +283,42 @@ async def cmd_menu(message: types.Message, state: FSMContext, bot : Bot):
         # Если профиля нет – запускаем регистрацию
         await state.set_state(ProfileStates.NAME)
         await message.answer("Как тебя зовут?", reply_markup=build_cancel_keyboard())
+
+@common_router.message(Command("referral"))
+async def referral_handler(message: types.Message):
+    user_id = message.from_user.id
+
+    # # 1) получаем реферальный код, создаём если нужно
+    # rec = db.get_pending_referral(user_id)
+    #
+    # if not rec["referral_code"]:
+    #     code = generate_referral_code()
+    #     await db.execute(
+    #         "UPDATE users SET referral_code = $1 WHERE user_id = $2",
+    #         code, user_id
+    #     )
+    # else:
+    #     code = rec["referral_code"]
+    #
+    # # 2) сколько успешных рефералов (только те, по которым bonus_credited = TRUE)
+    # cnt = await db.fetchval(
+    #     "SELECT COUNT(*) FROM referrals WHERE referrer_id = $1 AND bonus_credited = TRUE",
+    #     user_id
+    # )
+    #
+    # # 3) формируем ссылку
+    # bot_username = (await bot.get_me()).username
+    # link = f"https://t.me/{bot_username}?start={code}"
+
+    # # 4) шлём пользователю
+    # await message.answer(
+    #     "🎁 Приведи друга и вы оба получите 5К гемов 💎\n\n"
+    #     "❌ Запрещается абузить твинк-аккаунты. За подобные схемы аккаунт будет забанен навсегда\n\n"
+    #     "📕 Условия: пользователь, которого ты приведёшь, "
+    #     "должен полностью заполнить анкету и получить 10 лайков\n\n"
+    #     f"Вот твоя реферальная ссылка: {link}\n\n"
+    #     f"Ты привел(а) юзеров за все время: {cnt}"
+    # )
 
 
 # Export the router

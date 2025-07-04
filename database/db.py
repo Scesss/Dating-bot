@@ -1,7 +1,8 @@
-from .connection import get_connection
+from database.connection import get_connection
 import os
 from dotenv import load_dotenv
-
+from typing import Optional
+from asyncpg import Record
 load_dotenv()
 
 blank_photo_id = os.getenv("BLANK_PROFILE_PHOTO_ID")
@@ -465,6 +466,75 @@ class Database:
         # Если вдруг нет в списке — поместим в самый конец
         return len(profiles) + 1
 
+    def insert_referral(self, referrer_id: int, referee_id: int) -> None:
+        """
+        Вставляет запись о новом реферале.
+        Если запись уже существует (referee_id unique), ничего не делает.
+        """
+        self.cursor.execute(
+            """
+            INSERT INTO referrals(referrer_id, referee_id)
+            VALUES ($1, $2)
+            ON CONFLICT (referee_id) DO NOTHING
+            """, referrer_id, referee_id
+        )
+        # logger.debug(f"Referral insert attempted: {referrer_id} -> {referee_id}")
+
+    def mark_registered(self, referee_id: int) -> None:
+        """
+        Помечает реферала как зарегистрированного (заполнил анкету).
+        """
+        self.cursor.execute(
+            """
+            UPDATE referrals
+            SET registered = TRUE
+            WHERE referee_id = $1 AND registered = FALSE
+            """, referee_id
+        )
+        # logger.debug(f"Referral registered flag set for referee_id={referee_id}")
+
+    def get_pending_referral(self, referee_id: int) -> Optional[Record]:
+        """
+        Возвращает запись реферала, у которого registered=TRUE и bonus_credited=FALSE.
+        """
+        row = self.cursor.fetchrow(
+            """
+            SELECT id, referrer_id, referee_id
+            FROM referrals
+            WHERE referee_id = $1
+              AND registered = TRUE
+              AND bonus_credited = FALSE
+            """, referee_id
+        )
+        # logger.debug(f"Pending referral lookup for referee_id={referee_id}: {row}")
+        return row
+
+    def mark_bonus_credited(self, referral_id: int) -> None:
+        """Помечает запись реферала как получившего бонус."""
+        self.cursor.execute(
+            """
+            UPDATE referrals
+            SET bonus_credited = TRUE
+            WHERE id = $1 AND bonus_credited = FALSE
+            """, referral_id
+        )
+        # logger.debug(f"Referral bonus_credited set for id={referral_id}")
+
+    def count_successful_referrals(self, referrer_id: int) -> int:
+        """
+        Считает количество рефералов, по которым бонус уже выплачен.
+        """
+        cnt = self.cursor.fetchval(
+            """
+            SELECT COUNT(*)
+            FROM referrals
+            WHERE referrer_id = $1 AND bonus_credited = TRUE
+            """, referrer_id
+        )
+        # logger.debug(f"Count of successful referrals for {referrer_id}: {cnt}")
+        return cnt
+
+
 # Модульный интерфейс для простого импорта
 _db = Database()
 
@@ -578,8 +648,16 @@ def get_matches(user_id: int) -> list[dict]:
     return _db.get_matches(user_id)
 
 def get_user_rank(user_id: int) -> int:
-    """
-    Модульная обёртка для Database.get_user_rank — чтобы из handlers/common.py
-    можно было вызывать db.get_user_rank(...)
-    """
     return _db.get_user_rank(user_id)
+
+def mark_registered(self, referee_id: int) -> None:
+    return _db.mark_registered(referee_id)
+
+def get_pending_referral(self, referee_id: int) -> Optional[Record]:
+    return _db.get_pending_referral(referee_id)
+
+def mark_bonus_credited(self, referral_id: int) -> None:
+    return _db.mark_bonus_credited(referral_id)
+
+def count_successful_referrals(self, referrer_id: int) -> int:
+    return _db.count_successful_referrals(referrer_id)

@@ -66,7 +66,7 @@ async def process_choose(message: types.Message, state: FSMContext):
             current_lon        = my_profile['lon']
         )
         if result:
-            rank = db.get_user_rank(profile['user_id'])
+            rank = db.get_user_rank(my_profile['user_id'])
             text = (f"{result['name']}, {result['age']}, {result.get('city') or 'Не указан'}")
             if result['distance_km'] is not None:
                 text += f", 📍 {result['distance_km']:.1f} км"

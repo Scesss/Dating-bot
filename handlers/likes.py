@@ -34,7 +34,7 @@ async def on_like_accept(call: CallbackQuery, state: FSMContext):
         my_name     = db.get_profile(me)["name"]
         target_name = db.get_profile(target)["name"]
         
-        await call.message.answer(f"🎉 Это взаимный лайк! У вас новый матч с {target_name}!")
+        await call.message.answer(f"🎉 Это взаимный лайк! Нажми /matches, чтобы увидеть")
 
         add_match(target, me)
         # уведомляем получателя
