@@ -51,7 +51,7 @@ async def on_cancel_edit(callback: types.CallbackQuery, state: FSMContext):
     await callback.answer()
 
 @router.callback_query(F.data == "refill_profile", StateFilter(ProfileStates.EDIT_PROFILE))
-async def on_refill_profile(callback: types.CallbackQuery, *, state: FSMContext):
+async def on_refill_profile(callback: types.CallbackQuery, state: FSMContext):
     # Удаляем сообщение с профилем
     await callback.message.delete()
     # Очищаем состояние и запускаем регистрацию заново
@@ -170,8 +170,8 @@ async def process_edit_bio(message: types.Message, state: FSMContext):
         return
     if message.entities:
         for ent in message.entities:
-            if ent.type in ("url", "text_link", "mention", "text_mention"):
-                return await message.answer("❌ Текст не должен содержать ссылок или @-тегов.")
+            if ent.type in ("url", "text_link", "mention", "text_mention", "phone_number"):
+                return await message.answer("❌ Текст не должен содержать ссылок, @-тегов, номеров телефона.")
 
     db.update_profile_field(message.from_user.id, 'bio', bio_text)
     await message.answer("✅ Описание обновлено.", reply_markup=types.ReplyKeyboardRemove())

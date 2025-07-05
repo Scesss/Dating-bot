@@ -1,5 +1,5 @@
 from keyboards.builders import *
-from aiogram import Bot
+from aiogram import Bot, F
 from database.db import *
 from typing import Union
 from aiogram.types import Message, CallbackQuery, ReplyKeyboardRemove
@@ -164,6 +164,7 @@ async def show_liked_profile(src: Union[Message, CallbackQuery], state: FSMConte
         )
 
 @common_router.message(Command("likes"))
+@common_router.message(StateFilter(ProfileStates.MENU), F.text == "❤️ Лайки")
 async def cmd_likes(message: types.Message, state: FSMContext):
     me = message.from_user.id
     # 1) Извлекаем всех, кто лайкнул вас
@@ -196,6 +197,7 @@ async def cmd_likes(message: types.Message, state: FSMContext):
     await show_liked_profile(message, state)
 
 @common_router.message(Command("matches"))
+@common_router.message(StateFilter(ProfileStates.MENU), F.text == "💖 Матчи")
 async def cmd_matches(message: Message, state: FSMContext):
     user_id = message.from_user.id
     match_ids = db.get_matches(user_id)  # из database.db

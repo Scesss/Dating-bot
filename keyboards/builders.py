@@ -55,7 +55,11 @@ def build_menu_keyboard(user_gender: str):
     return ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text="🔍 Смотреть Анкеты")],
-            [KeyboardButton(text=profile_label)],
+            [
+                KeyboardButton(text="❤️ Лайки"),
+                KeyboardButton(text=profile_label),
+                KeyboardButton(text="💖 Матчи"),
+            ],
             [KeyboardButton(text="👑 Топ"), KeyboardButton(text="🌙 Сон")]
         ],
         resize_keyboard=True,

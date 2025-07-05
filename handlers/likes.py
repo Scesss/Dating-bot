@@ -200,7 +200,7 @@ async def like_with_cash_req(call: CallbackQuery, state: FSMContext):
     bal     = profile["balance"]
     await state.update_data(liked_user_id=target)
     await state.set_state(ProfileStates.LIKE_WITH_CASH)
-    await call.message.answer(f"У вас на счету {bal} монет. Введите сумму, которую хотите отправить вместе с лайком:")
+    await call.message.answer(f"У вас на счету {bal} монет. Введите сумму, которую хотите отправить вместе с лайком:", reply_markup = get_cancel_keyboard())
     await call.answer()
 
 @router.message(ProfileStates.LIKE_WITH_CASH)
