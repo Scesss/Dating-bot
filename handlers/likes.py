@@ -136,11 +136,12 @@ async def like_simple(call: CallbackQuery, state: FSMContext):
         target_unseen = db.get_unseen_matches_count(target)
         await call.bot.send_message(target, f"🤝 У вас {target_unseen} непросмотренных матчей!")
     else:
-        unseen = get_unseen_likes_count(target)
+        unseen = db.get_unseen_count_likes(target)
         await call.bot.send_message(
             target,
             f"❤️ У вас {unseen} непросмотренных лайков!"
         )
+    db.check_and_credit_referral(target)
     await call.answer()
     # показать следующий профиль
     await show_next_profile(call, state)
@@ -151,13 +152,23 @@ async def like_with_msg_req(call: CallbackQuery, state: FSMContext):
     target = int(call.data.split(":")[1])
     await state.update_data(liked_user_id=target)
     await state.set_state(ProfileStates.LIKE_WITH_MESSAGE)
-    await call.message.answer("Напишите сообщение, которое будет отправлено вместе с лайком:")
+    cancel_kb = get_cancel_keyboard()
+    await call.message.answer("Напишите сообщение, которое будет отправлено вместе с лайком:", reply_markup=cancel_kb)
     await call.answer()
 
 @router.message(ProfileStates.LIKE_WITH_MESSAGE)
 async def like_with_msg(msg: Message, state: FSMContext):
     data = await state.get_data()
-    target = data["liked_user_id"]
+    target = data.get("liked_user_id")
+
+    # 1) Обработка отмены
+    if msg.text == "❌ Отмена":
+        await state.set_state(ProfileStates.BROWSING)
+        kb = get_browse_keyboard(target)
+        await msg.answer("Действие отменено.", reply_markup=kb)
+        return
+
+
     text   = msg.text[:500]  # обрезаем, если слишком много
     add_like(msg.from_user.id, target, message=text)
     # +2 за лайк с сообщением
@@ -172,7 +183,7 @@ async def like_with_msg(msg: Message, state: FSMContext):
         target_unseen = db.get_unseen_matches_count(target)
         await msg.bot.send_message(target, f"🤝 У вас {target_unseen} непросмотренных матчей!")
     else:
-        unseen = get_unseen_likes_count(target)
+        unseen = db.get_unseen_count_likes(target)
         await msg.bot.send_message(
             target,
             f"❤️ У вас {unseen} непросмотренных лайков!"
@@ -194,18 +205,36 @@ async def like_with_cash_req(call: CallbackQuery, state: FSMContext):
 
 @router.message(ProfileStates.LIKE_WITH_CASH)
 async def like_with_cash(msg: Message, state: FSMContext):
-    data   = await state.get_data()
-    target = data["liked_user_id"]
+    data = await state.get_data()
+    target = data.get("liked_user_id")
+    # Клавиатура отмены
+    cancel_kb = get_cancel_keyboard()
+
+    # Обработка отмены
+    if msg.text == "❌ Отмена":
+        # Возвращаем пользователя в состояние просмотра текущего профиля
+        await state.set_state(ProfileStates.BROWSING)
+        # Отправляем клавиатуру для текущего target
+        keyboard = get_browse_keyboard(target)
+        await msg.answer("Действие отменено.", reply_markup=keyboard)
+        return
+
     try:
         amount = int(msg.text)
         if amount <= 0:
             raise ValueError
     except ValueError:
-        return await msg.answer("Пожалуйста, введите положительное число монет.")
+        return await msg.answer(
+            "Пожалуйста, введите положительное число монет или нажмите ❌ Отмена.",
+            reply_markup=cancel_kb
+        )
 
     profile = get_user(msg.from_user.id)
     if profile["balance"] < amount:
-        return await msg.answer("У вас недостаточно монет. Введите другую сумму.")
+        return await msg.answer(
+            "У вас недостаточно монет. Введите другую сумму или нажмите ❌ Отмена.",
+            reply_markup=cancel_kb
+        )
 
     # списываем с отправителя и зачисляем получателю
     change_balance(msg.from_user.id, -amount)
@@ -215,6 +244,7 @@ async def like_with_cash(msg: Message, state: FSMContext):
     # +7 за получение такого лайка
     change_balance(target, 7)
     add_like(msg.from_user.id, target, amount=amount)
+    db.check_and_credit_referral(target)
 
     if db.user_liked(target, msg.from_user.id):
         # Получаем имя оппонента для сообщения (можно было передать через callback или хранить в FSM данные текущей анкеты)
@@ -223,7 +253,7 @@ async def like_with_cash(msg: Message, state: FSMContext):
         target_unseen = db.get_unseen_matches_count(target)
         await msg.bot.send_message(target, f"🤝 У вас {target_unseen} непросмотренных матчей!")
     else:
-        unseen = get_unseen_likes_count(target)
+        unseen = db.get_unseen_count_likes(target)
         await msg.bot.send_message(
             target,
             f"❤️ У вас {unseen} непросмотренных лайков!"

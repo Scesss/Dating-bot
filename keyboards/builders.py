@@ -135,12 +135,12 @@ def build_restart_keyboard():
 def get_browse_keyboard(target_id: int):
     return InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="👍 Лайк",              callback_data=f"like_simple:{target_id}"),
-            InlineKeyboardButton(text="💬 Лайк с сообщением", callback_data=f"like_msg:{target_id}"),
-            InlineKeyboardButton(text="💰 Лайк с чеком",      callback_data=f"like_cash:{target_id}")
+            InlineKeyboardButton(text="👍",              callback_data=f"like_simple:{target_id}"),
+            InlineKeyboardButton(text="💌", callback_data=f"like_msg:{target_id}"),
+            InlineKeyboardButton(text="🪙",      callback_data=f"like_cash:{target_id}")
         ],
         [
-            InlineKeyboardButton(text="👎 Дизлайк",           callback_data=f"dislike:{target_id}"),
+            InlineKeyboardButton(text="👎",           callback_data=f"dislike:{target_id}"),
             InlineKeyboardButton(text="📖 Завершить просмотр", callback_data="exit_browse")
         ]
     ])
@@ -198,3 +198,11 @@ def build_top_navigation_keyboard(
     # )
 
     return kb
+
+def get_cancel_keyboard() -> ReplyKeyboardMarkup:
+    """Клавиатура с кнопкой Отмена"""
+    return ReplyKeyboardMarkup(
+        keyboard=[[KeyboardButton(text="❌ Отмена")] ],
+        resize_keyboard=True,
+        one_time_keyboard=True
+    )

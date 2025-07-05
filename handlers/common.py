@@ -55,6 +55,7 @@ async def show_profile_info(message: types.Message, profile: dict, for_self: boo
 @common_router.message(Command("start"))
 async def cmd_start(message: types.Message, state: FSMContext, bot : Bot):
 
+
     await state.clear()
     user_id = message.from_user.id
     logger.info(f"Start command from {user_id}")
@@ -72,8 +73,12 @@ async def cmd_start(message: types.Message, state: FSMContext, bot : Bot):
         # # Отправляем данные анкеты пользователю (см. следующий раздел о формате вывода)
         # await show_profile_info(message, profile)
     else:
-        # Если профиля нет – запускаем регистрацию
+        user = message.from_user
+        parts = (message.text or "").split(maxsplit=1)
+        code = parts[1] if len(parts) > 1 else None
         await state.set_state(ProfileStates.NAME)
+        await state.update_data(referral_code=code)
+        # Если профиля нет – запускаем регистрацию
         await message.answer("Как тебя зовут?", reply_markup=build_cancel_keyboard())
 
 @common_router.message(Command("profile"))
@@ -217,13 +222,14 @@ async def cmd_matches(message: Message, state: FSMContext):
 @common_router.message(Command("menu"))
 async def cmd_menu(message: types.Message, state: FSMContext, bot : Bot):
     member = await bot.get_chat_member(chat_id="@CafeDateInc", user_id=message.from_user.id)
-
+    db.check_and_credit_referral(message.from_user.id)
+    logger.info(message.from_user.id)
     if member.status in ("left", "kicked"):
         await message.answer("❗️Для работы бота подпишитесь на наш канал: @CafeDateInc")
         return
 
     user_id = message.from_user.id
-    unseen_likes   = db.get_unseen_likes_count(user_id)
+    unseen_likes = db.get_unseen_count_likes(user_id)
     unseen_matches= db.get_unseen_matches_count(user_id)
     notify_parts = []
     if unseen_likes:
@@ -276,7 +282,7 @@ async def cmd_menu(message: types.Message, state: FSMContext, bot : Bot):
 
 
 @common_router.message(Command("referral"))
-async def referral_handler(state: FSMContext, message: types.Message):
+async def referral_handler(message: types.Message, state: FSMContext):
     # await state.clear()
     user_id = message.from_user.id
     logger.info(f"Start command from {user_id}")
@@ -292,7 +298,7 @@ async def referral_handler(state: FSMContext, message: types.Message):
     count = db.count_successful_referrals(user_id)
     link = f"https://t.me/CafeDateBot?start={code}"
     text = (
-        "🎁 Приведи друга и вы оба получите 5К гемов 💎\n\n"
+        "🎁 Приведи друга и вы оба получите 5К чаевых\n\n"
         "❌ Запрещается абузить твинк-аккаунты. За подобные схемы аккаунт будет забанен навсегда\n\n"
         "📕 Условия: пользователь, которого ты приведёшь, должен полностью заполнить анкету и получить 10 лайков\n\n"
         f"Вот твоя реферальная ссылка: {link}\n\n"

@@ -4,8 +4,11 @@ from dotenv import load_dotenv
 from typing import Optional
 from asyncpg import Record
 import secrets
-load_dotenv()
 
+import logging
+
+load_dotenv()
+logger = logging.getLogger(__name__)
 blank_photo_id = os.getenv("BLANK_PROFILE_PHOTO_ID")
 
 
@@ -114,7 +117,7 @@ class Database:
 
     # ——— новые методы для непросмотренных лайков ———
 
-    def get_unseen_likes_count(self, user_id: int) -> int:
+    def get_unseen_count_likes(self, user_id: int) -> int:
         self.cursor.execute(
             """
             SELECT COUNT(*) AS cnt
@@ -476,22 +479,13 @@ class Database:
         )
         self.cursor.connection.commit()
 
-    def mark_registered(self, code: str, referee_id: int) -> None:
-        """
-        Когда новый пользователь зашёл по коду,
-        находим запись с referral_code=code и
-        заполняем в ней referee_id + registered = TRUE
-        """
+    def mark_registered(self, referee_id: int) -> None:
+        """Ставит registered = TRUE для строки referrals по referee_id"""
         self.cursor.execute(
-            """
-            UPDATE referrals
-            SET referee_id = %s, registered = TRUE
-            WHERE referral_code = %s
-              AND referee_id IS NULL
-            """,
-            (referee_id, code)
+            "UPDATE referrals SET registered = TRUE WHERE referee_id = %s",
+            (referee_id,)
         )
-        self.cursor.connection.commit()
+        (self.cursor.connection.commit())
 
     def get_pending_referral(self, referee_id: int) -> Optional[Record]:
         """
@@ -562,9 +556,8 @@ class Database:
         row = self.cursor.fetchone()
         return row[0] if row else None
 
-    def check_and_credit_referral(self, referee_id: int) -> None:
-        """Проверяет и, если условия выполнены, начисляет бонусы рефералу и рефереру"""
-        # Получаем запись с невыданным бонусом
+    def check_and_credit_referral(self, referee_id: int) -> bool:
+        # 1) Ищем pending
         self.cursor.execute(
             "SELECT id, referrer_id FROM referrals "
             "WHERE referee_id = %s AND registered = TRUE AND bonus_credited = FALSE",
@@ -572,27 +565,42 @@ class Database:
         )
         row = self.cursor.fetchone()
         if not row:
-            return
-        referral_id, referrer_id = row
+            return False
+        referral_id, referrer_id = (row['id'], row['referrer_id']) if isinstance(row, dict) else row
 
-        # Получаем количество лайков
+        # 2) Сколько лайков набрал реферал
         self.cursor.execute(
-            "SELECT likes_count FROM users WHERE user_id = %s", (referee_id,)
+            "SELECT count_likes FROM users WHERE user_id = %s",
+            (referee_id,)
         )
+        logger.info("HUI1")
         likes_row = self.cursor.fetchone()
-        likes = likes_row[0] if likes_row else 0
+        if not likes_row:
+            return False
+        logger.info("HUI2")
+        if isinstance(likes_row, dict):
+            likes = likes_row.get('count_likes', 0)
+        else:
+            likes = likes_row[0]
+
+
+        # 3) Проверяем условие
         if likes < 10:
-            return
+            return False
+        logger.info("HUI3")
 
-        # Начисляем гемы (предполагается, что метод credit_gems синхронный)
-        self.cursor.credit_gems(referrer_id, 5000)
-        self.cursor.credit_gems(referee_id, 5000)
+        # 4) Начисляем гемы
+        self.change_balance(referrer_id, 5000)
+        self.change_balance(referee_id, 5000)
 
-        # Помечаем бонус выданным
+        # 5) Помечаем бонус выданным
         self.cursor.execute(
-            "UPDATE referrals SET bonus_credited = TRUE WHERE id = %s", (referral_id,)
+            "UPDATE referrals SET bonus_credited = TRUE WHERE id = %s",
+            (referral_id,)
         )
+        logger.info("HUI4")
         self.cursor.connection.commit()
+        return True
 
     def update_like_counters(self, sender_id, receiver_id):
         # Open a cursor and execute the necessary queries
@@ -703,7 +711,29 @@ class Database:
             "UPDATE referrals SET referee_id = %s, registered = TRUE WHERE id = %s",
             (referee_id, referral_id)
         )
-        self.connection.commit()
+        self.cursor.connection.commit()
+        return True
+
+    def ensure_user_exists(self, user_id: int) -> bool:
+        """
+        Создаёт запись в users, если её ещё нет.
+        Возвращает True, если добавили, False, если уже был.
+        """
+        self.cursor.execute(
+            "SELECT 1 FROM users WHERE user_id = %s",
+            (user_id,)
+        )
+        if self.cursor.fetchone():
+            return False
+
+        self.cursor.execute(
+            """
+            INSERT INTO users (user_id, first_name, last_name, username)
+            VALUES (%s, %s, %s, %s)
+            """,
+            (user_id)
+        )
+        self.cursor.connection.commit()
         return True
 
 
@@ -789,8 +819,8 @@ def change_balance(user_id: int, amount: int):
 def sleep_profile(user_id: int):
     return _db.sleep_profile(user_id)
 
-def get_unseen_likes_count(user_id: int) -> int:
-    return _db.get_unseen_likes_count(user_id)
+def get_unseen_count_likes(user_id: int) -> int:
+    return _db.get_unseen_count_likes(user_id)
 
 def mark_likes_seen(user_id: int) -> None:
     _db.mark_likes_seen(user_id)
@@ -841,8 +871,11 @@ def ensure_referral_code(referrer_id: int) -> str:
 def get_referrer_by_code(code: str) -> Optional[int]:
     return _db.get_referrer_by_code(code)
 
-def mark_registered(code: str, referee_id: int) -> None:
-    return _db.mark_registered(code, referee_id)
+def mark_registered(referee_id: int) -> None:
+    return _db.mark_registered(referee_id)
 
 def process_referral(referral_code: str, referee_id: int) -> bool:
     return _db.process_referral(referral_code, referee_id)
+
+def ensure_user_exists(user_id: int) -> bool:
+    return _db.ensure_user_exists(user_id)

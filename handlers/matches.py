@@ -63,6 +63,7 @@ async def show_match_profile(src, state: FSMContext):
         prof["name"],
         prof["age"],
         prof["gender"],
+        prof["count_likes"]
     )
 
     if isinstance(src, Message):
