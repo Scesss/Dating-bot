@@ -51,7 +51,7 @@ async def on_cancel_edit(callback: types.CallbackQuery, state: FSMContext):
     await callback.answer()
 
 @router.callback_query(F.data == "refill_profile", StateFilter(ProfileStates.EDIT_PROFILE))
-async def on_refill_profile(callback: types.CallbackQuery, state: FSMContext):
+async def on_refill_profile(callback: types.CallbackQuery, *, state: FSMContext):
     # Удаляем сообщение с профилем
     await callback.message.delete()
     # Очищаем состояние и запускаем регистрацию заново

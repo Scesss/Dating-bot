@@ -846,5 +846,3 @@ def mark_registered(code: str, referee_id: int) -> None:
 
 def process_referral(referral_code: str, referee_id: int) -> bool:
     return _db.process_referral(referral_code, referee_id)
-
-db = _db
