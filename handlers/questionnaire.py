@@ -7,6 +7,7 @@ from aiogram.filters import StateFilter
 from services.geocoding import get_city_name, is_valid_city
 from utils.navigation import Navigation
 from database import db
+from database.db import *
 import logging
 from aiogram.filters import Command
 from services.geocoding import get_city_name_from_query
@@ -263,6 +264,21 @@ async def process_confirmation(message: types.Message, state: FSMContext):
                 lat=float(data['location'].split(',')[0]) if data.get('location') else None,
                 lon=float(data['location'].split(',')[1]) if data.get('location') else None
             )
+            user = message.from_user
+            user_id = user.id
+
+            # Парсим аргумент после команды: /start <code>
+            parts = (message.text or "").split(maxsplit=1)
+            code = parts[1] if len(parts) > 1 else None
+
+            # 1) Если у пользователя ещё нет своего реферального кода — создаём его
+            invite_code = ensure_referral_code(user_id)
+
+            # 2) Если пришёл чужой код — обрабатываем переход
+            if code:
+                linked = db.process_referral(code, user_id)
+                if linked:
+                    await message.answer("🎉 Спасибо за регистрацию по реф-ссылке! Добро пожаловать.")
 
         except Exception as e:
             logging.error(f"Error saving profile: {e}")

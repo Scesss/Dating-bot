@@ -34,7 +34,7 @@ async def on_like_accept(call: CallbackQuery, state: FSMContext):
         my_name     = db.get_profile(me)["name"]
         target_name = db.get_profile(target)["name"]
         
-        await call.message.answer(f"🎉 Это взаимный лайк! Нажми /matches, чтобы увидеть")
+        await call.message.answer(f"🎉 Это взаимный лайк! Жми /matches, чтобы увидеть")
 
         add_match(target, me)
         # уведомляем получателя
@@ -120,6 +120,8 @@ async def dislike_simple(call: CallbackQuery, state: FSMContext):
 # Простой лайк (как было раньше)
 @router.callback_query(ProfileStates.BROWSING, F.data.startswith("like_simple:"))
 async def like_simple(call: CallbackQuery, state: FSMContext):
+
+
     target = int(call.data.split(":")[1])
     add_like(call.from_user.id, target)
     # +1 за то, что ставишь лайк

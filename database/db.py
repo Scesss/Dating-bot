@@ -3,6 +3,7 @@ import os
 from dotenv import load_dotenv
 from typing import Optional
 from asyncpg import Record
+import secrets
 load_dotenv()
 
 blank_photo_id = os.getenv("BLANK_PROFILE_PHOTO_ID")
@@ -46,12 +47,13 @@ class Database:
             CREATE TABLE IF NOT EXISTS referrals (
                 id SERIAL PRIMARY KEY,
                 referrer_id BIGINT NOT NULL REFERENCES users(user_id),
-                referee_id BIGINT NOT NULL UNIQUE REFERENCES users(user_id),
+                referee_id BIGINT REFERENCES users(user_id),
+                referral_code VARCHAR(16) UNIQUE,
                 registered BOOLEAN DEFAULT FALSE,
                 bonus_credited BOOLEAN DEFAULT FALSE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
+                    )
+                """)
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS likes (
                 user_id           BIGINT      NOT NULL,
@@ -467,31 +469,29 @@ class Database:
         return len(profiles) + 1
 
     def insert_referral(self, referrer_id: int, referee_id: int) -> None:
-        """
-        Вставляет запись о новом реферале.
-        Если запись уже существует (referee_id unique), ничего не делает.
-        """
+        """Вставляет новую запись о рекомендации, если её ещё нет"""
         self.cursor.execute(
-            """
-            INSERT INTO referrals(referrer_id, referee_id)
-            VALUES ($1, $2)
-            ON CONFLICT (referee_id) DO NOTHING
-            """, referrer_id, referee_id
+            "INSERT INTO referrals(referrer_id, referee_id) VALUES (%s, %s) "
+            "ON CONFLICT (referee_id) DO NOTHING", (referrer_id, referee_id)
         )
-        # logger.debug(f"Referral insert attempted: {referrer_id} -> {referee_id}")
+        self.cursor.connection.commit()
 
-    def mark_registered(self, referee_id: int) -> None:
+    def mark_registered(self, code: str, referee_id: int) -> None:
         """
-        Помечает реферала как зарегистрированного (заполнил анкету).
+        Когда новый пользователь зашёл по коду,
+        находим запись с referral_code=code и
+        заполняем в ней referee_id + registered = TRUE
         """
         self.cursor.execute(
             """
             UPDATE referrals
-            SET registered = TRUE
-            WHERE referee_id = $1 AND registered = FALSE
-            """, referee_id
+            SET referee_id = %s, registered = TRUE
+            WHERE referral_code = %s
+              AND referee_id IS NULL
+            """,
+            (referee_id, code)
         )
-        # logger.debug(f"Referral registered flag set for referee_id={referee_id}")
+        self.cursor.connection.commit()
 
     def get_pending_referral(self, referee_id: int) -> Optional[Record]:
         """
@@ -520,19 +520,191 @@ class Database:
         )
         # logger.debug(f"Referral bonus_credited set for id={referral_id}")
 
+    def generate_referral_code(self) -> str:
+        """Генерирует уникальный код для реферальной ссылки"""
+        while True:
+            code = secrets.token_urlsafe(8)
+            self.cursor.execute(
+                "SELECT 1 FROM referrals WHERE referral_code = %s", (code,)
+            )
+            if not self.cursor.fetchone():
+                return code
+
+    def ensure_referral_code(self, referrer_id: int) -> str:
+        """Возвращает существующий код или создаёт новый и сохраняет его в referrals.referral_code"""
+        # Проверяем, есть ли уже код для этого пригласившего
+        self.cursor.execute(
+            "SELECT referral_code FROM referrals WHERE referrer_id = %s AND referee_id IS NULL",
+            (referrer_id,)
+        )
+        row = self.cursor.fetchone()
+        code = None
+        if row and isinstance(row, dict):
+            code = row.get('referral_code')
+        elif row:
+            code = row[0]
+        if code:
+            return code
+        # Генерируем новый код и сохраняем запись
+        code = self.generate_referral_code()
+        self.cursor.execute(
+            "INSERT INTO referrals(referrer_id, referral_code) VALUES (%s, %s)",
+            (referrer_id, code)
+        )
+        self.cursor.connection.commit()
+        return code
+
+    def get_user_id_by_referral_code(self, code: str) -> Optional[int]:
+        """Ищет user_id по переданному коду"""
+        self.cursor.execute(
+            "SELECT user_id FROM users WHERE referral_code = %s", (code,)
+        )
+        row = self.cursor.fetchone()
+        return row[0] if row else None
+
+    def check_and_credit_referral(self, referee_id: int) -> None:
+        """Проверяет и, если условия выполнены, начисляет бонусы рефералу и рефереру"""
+        # Получаем запись с невыданным бонусом
+        self.cursor.execute(
+            "SELECT id, referrer_id FROM referrals "
+            "WHERE referee_id = %s AND registered = TRUE AND bonus_credited = FALSE",
+            (referee_id,)
+        )
+        row = self.cursor.fetchone()
+        if not row:
+            return
+        referral_id, referrer_id = row
+
+        # Получаем количество лайков
+        self.cursor.execute(
+            "SELECT likes_count FROM users WHERE user_id = %s", (referee_id,)
+        )
+        likes_row = self.cursor.fetchone()
+        likes = likes_row[0] if likes_row else 0
+        if likes < 10:
+            return
+
+        # Начисляем гемы (предполагается, что метод credit_gems синхронный)
+        self.cursor.credit_gems(referrer_id, 5000)
+        self.cursor.credit_gems(referee_id, 5000)
+
+        # Помечаем бонус выданным
+        self.cursor.execute(
+            "UPDATE referrals SET bonus_credited = TRUE WHERE id = %s", (referral_id,)
+        )
+        self.cursor.connection.commit()
+
+    def update_like_counters(self, sender_id, receiver_id):
+        # Open a cursor and execute the necessary queries
+        with self.cursor.connection() as cur:
+            # Increment the sender's "likes_given"
+            cur.execute("UPDATE users SET likes_given = likes_given + 1 WHERE id = %s", (sender_id,))
+            # Increment the receiver's "likes_received"
+            cur.execute("UPDATE users SET likes_received = likes_received + 1 WHERE id = %s", (receiver_id,))
+            self.cursor.connection.commit()
+            # Optionally, fetch the new counts to return
+            cur.execute("SELECT likes_given FROM users WHERE id = %s", (sender_id,))
+            new_sender = cur.fetchone()[0]
+            cur.execute("SELECT likes_received FROM users WHERE id = %s", (receiver_id,))
+            new_receiver = cur.fetchone()[0]
+            return new_sender, new_receiver
+
     def count_successful_referrals(self, referrer_id: int) -> int:
         """
-        Считает количество рефералов, по которым бонус уже выплачен.
+        Считает количество успешно выполненных рекомендаций с выданным бонусом.
+        Поддерживает как tuple‐, так и dict‐курсор.
         """
-        cnt = self.cursor.fetchval(
-            """
-            SELECT COUNT(*)
-            FROM referrals
-            WHERE referrer_id = $1 AND bonus_credited = TRUE
-            """, referrer_id
+        # Делаем явный алиас колонки для удобства
+        self.cursor.execute(
+            "SELECT COUNT(*) AS cnt "
+            "FROM referrals "
+            "WHERE referrer_id = %s AND bonus_credited = TRUE",
+            (referrer_id,)
         )
-        # logger.debug(f"Count of successful referrals for {referrer_id}: {cnt}")
-        return cnt
+        row = self.cursor.fetchone()
+        if not row:
+            return 0
+
+        # Если курсор возвращает dict — вытаскиваем по ключу 'cnt'
+        if isinstance(row, dict):
+            return row.get('cnt', 0)
+
+        # Иначе считаем, что это tuple/list — первый элемент
+        try:
+            return row[0]
+        except (IndexError, KeyError, TypeError):
+            return 0
+
+    def get_referrer_by_code(self, code: str) -> Optional[int]:
+        """Ищем referrer_id по коду в referrals."""
+        self.cursor.execute(
+            "SELECT referrer_id FROM referrals WHERE referral_code = %s",
+            (code,)
+        )
+        row = self.cursor.fetchone()
+        return row[0] if row else None
+
+    def generate_referral_code(self) -> str:
+        """Генерирует уникальный код для реферальной ссылки"""
+        while True:
+            code = secrets.token_urlsafe(8)
+            self.cursor.execute(
+                "SELECT 1 FROM referrals WHERE referral_code = %s", (code,)
+            )
+            if not self.cursor.fetchone():
+                return code
+
+    def ensure_referral_code(self, referrer_id: int) -> str:
+        """Возвращает существующий код или создаёт новый и сохраняет его в referrals.referral_code"""
+        # Проверяем, есть ли уже код для этого пригласившего
+        self.cursor.execute(
+            "SELECT referral_code FROM referrals WHERE referrer_id = %s AND referee_id IS NULL",
+            (referrer_id,)
+        )
+        row = self.cursor.fetchone()
+        code = None
+        if row and isinstance(row, dict):
+            code = row.get('referral_code')
+        elif row:
+            code = row[0]
+        if code:
+            return code
+        # Генерируем новый код и сохраняем запись
+        code = self.generate_referral_code()
+        self.cursor.execute(
+            "INSERT INTO referrals(referrer_id, referral_code) VALUES (%s, %s)",
+            (referrer_id, code)
+        )
+        self.cursor.connection.commit()
+        return code
+
+    def process_referral(self, referral_code: str, referee_id: int) -> bool:
+        """
+        Обрабатывает переход по реферальной ссылке:
+        - Находит запись в referrals по referral_code и referee_id IS NULL
+        - Если найдена и referrer_id != referee_id, устанавливает referee_id и registered = TRUE
+        - Возвращает True, если запись обновлена, иначе False
+        """
+        self.cursor.execute(
+            "SELECT id, referrer_id FROM referrals WHERE referral_code = %s AND referee_id IS NULL",
+            (referral_code,)
+        )
+        row = self.cursor.fetchone()
+        if not row:
+            return False
+        if isinstance(row, dict):
+            referral_id = row.get("id")
+            referrer_id = row.get("referrer_id")
+        else:
+            referral_id, referrer_id = row
+        if referrer_id == referee_id:
+            return False
+        self.cursor.execute(
+            "UPDATE referrals SET referee_id = %s, registered = TRUE WHERE id = %s",
+            (referee_id, referral_id)
+        )
+        self.connection.commit()
+        return True
 
 
 # Модульный интерфейс для простого импорта
@@ -614,18 +786,6 @@ def get_all_profiles_sorted_by_balance() -> list[dict]:
 def change_balance(user_id: int, amount: int):
     return _db.change_balance(user_id, amount)
 
-def award_given_like(user_id: int):
-    return _db.award_given_like(user_id)
-
-def award_given_dislike(user_id: int):
-    return _db.award_given_dislike(user_id)
-
-def award_received_like(user_id: int):
-    return _db.award_received_like(user_id)
-
-def award_received_dislike(user_id: int):
-    return _db.award_received_dislike(user_id)
-
 def sleep_profile(user_id: int):
     return _db.sleep_profile(user_id)
 
@@ -650,14 +810,41 @@ def get_matches(user_id: int) -> list[dict]:
 def get_user_rank(user_id: int) -> int:
     return _db.get_user_rank(user_id)
 
-def mark_registered(self, referee_id: int) -> None:
-    return _db.mark_registered(referee_id)
-
 def get_pending_referral(self, referee_id: int) -> Optional[Record]:
     return _db.get_pending_referral(referee_id)
 
 def mark_bonus_credited(self, referral_id: int) -> None:
     return _db.mark_bonus_credited(referral_id)
 
-def count_successful_referrals(self, referrer_id: int) -> int:
+def count_successful_referrals(referrer_id: int) -> int:
     return _db.count_successful_referrals(referrer_id)
+
+def update_like_counters(sender_id, receiver_id):
+    return _db.update_like_counters(sender_id, receiver_id)
+
+def generate_referral_code() -> str:
+    return _db.generate_referral_code()
+
+def get_user_id_by_referral_code(code: str) -> Optional[int]:
+    return _db.get_user_id_by_referral_code(code)
+
+def check_and_credit_referral(referee_id: int) -> None:
+    return _db.check_and_credit_referral(referee_id)
+
+def insert_referral(referrer_id: int, referee_id: int) -> None:
+    # """Вставляет новую запись о рекомендации"""
+    return _db.insert_referral(referrer_id, referee_id)
+
+def ensure_referral_code(referrer_id: int) -> str:
+    return _db.ensure_referral_code(referrer_id)
+
+def get_referrer_by_code(code: str) -> Optional[int]:
+    return _db.get_referrer_by_code(code)
+
+def mark_registered(code: str, referee_id: int) -> None:
+    return _db.mark_registered(code, referee_id)
+
+def process_referral(referral_code: str, referee_id: int) -> bool:
+    return _db.process_referral(referral_code, referee_id)
+
+db = _db
