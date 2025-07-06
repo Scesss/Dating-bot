@@ -36,7 +36,7 @@ async def process_choose(message: types.Message, state: FSMContext):
                    f"{profile['age']}, "
                    f"{profile['city'] or 'Не указан'}\n\n"
                    f" {profile['bio'][:1000]}\n\n"
-                   f" 🪙 {profile['balance']}, топ {rank}")
+                   f" 🪙 {profile['balance']}, 📊 топ  {rank}")
             if profile.get('photo_id'):
                 await message.answer_photo(profile['photo_id'], caption=caption,
                                    reply_markup=get_edit_menu_kb(), parse_mode  = None)
@@ -71,7 +71,7 @@ async def process_choose(message: types.Message, state: FSMContext):
             if result['distance_km'] is not None:
                 text += f", 📍 {result['distance_km']:.1f} км"
             text += (f"\n\n{result['bio'][:200]}\n\n"
-                    f" 🪙 {result['balance']}, топ {rank}")
+                    f" 🪙 {result['balance']}, 📊 топ  {rank}")
         # Ограничим био ~300 символов, чтобы не перегружать сообщение
             try:
                 if result.get('photo_id'):
@@ -173,7 +173,7 @@ async def show_next_profile(event: CallbackQuery | Message, state: FSMContext):
         text += f", 📍 {result['distance_km']:.1f} км"
     rank = db.get_user_rank(result['user_id'])
     text += (f"\n\n{result['bio'][:200]}\n\n"
-             f" 🪙 {result['balance']}, топ {rank}")
+             f" 🪙 {result['balance']}, 📊 топ  {rank}")
     # 8) Клавиатура
     kb = get_browse_keyboard(result["user_id"])
 

@@ -56,7 +56,7 @@ async def show_match_profile(src, state: FSMContext):
         caption += f", 📍 {prof['distance_km']:.1f} км"
     caption += (
         f"\n\n{prof.get('bio', '')[:1000]}\n\n"
-        f" _🪙 {prof['balance']}, топ {rank}_"
+        f" _🪙 {prof['balance']}, 📊 топ  {rank}_"
     )
     # logger.info(
     #     "Showing match profile — user_id=%s, name=%s, age=%s, gender=%s",
@@ -72,7 +72,7 @@ async def show_match_profile(src, state: FSMContext):
             photo=prof["photo_id"],
             caption=caption,
             reply_markup=kb,
-            parse_mode = ParseMode.MARKDOWN
+            parse_mode = None
         )
     else:
         try:

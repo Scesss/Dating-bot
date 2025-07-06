@@ -41,7 +41,7 @@ async def show_top_profile(
                f"{prof['age']}, "
                f"{prof['city'] or 'Не указан'}\n\n"
                f" {prof['bio'][:1000]}\n\n"
-               f" 🪙 {prof['balance']}, топ {rank}")
+               f" 🪙 {prof['balance']}, 📊 топ  {rank}")
 
     kb = build_top_navigation_keyboard(idx, len(profiles))
 
