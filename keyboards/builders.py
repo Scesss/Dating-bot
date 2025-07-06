@@ -58,7 +58,7 @@ def build_menu_keyboard(user_gender: str):
             [
                 KeyboardButton(text="❤️ Лайки"),
                 KeyboardButton(text=profile_label),
-                KeyboardButton(text="💖 Матчи"),
+                KeyboardButton(text="💖 Мэтчи"),
             ],
             [KeyboardButton(text="👑 Топ"), KeyboardButton(text="🌙 Сон")]
         ],

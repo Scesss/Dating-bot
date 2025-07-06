@@ -87,7 +87,7 @@ async def process_choose(message: types.Message, state: FSMContext):
             await message.answer("😢 Больше анкет не найдено. ⏳ Возвращаем в меню...", reply_markup=build_menu_keyboard(gender))
             await state.set_state(ProfileStates.MENU)
     elif message.text == "🌙 Сон":
-        return await message.answer("Пока нет такой функции")
+        return await message.answer("🛠️ Функция в разработке... 🛠️")
     elif message.text == "👑 Топ":
         await cmd_top(message, state)
 

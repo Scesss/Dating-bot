@@ -1,5 +1,5 @@
 from aiogram import Router, F
-from aiogram.filters import Command
+from aiogram.enums import ParseMode
 from aiogram.types import Message, CallbackQuery, InputMediaPhoto
 from aiogram.filters.state import StateFilter
 from aiogram.fsm.context import FSMContext
@@ -10,6 +10,7 @@ from keyboards.builders import *
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from utils.geo import calculate_distance
 from aiogram.exceptions import TelegramBadRequest
+from aiogram import types
 
 import logging
 logger = logging.getLogger(__name__)
@@ -55,23 +56,23 @@ async def show_match_profile(src, state: FSMContext):
         caption += f", 📍 {prof['distance_km']:.1f} км"
     caption += (
         f"\n\n{prof.get('bio', '')[:1000]}\n\n"
-        f" 🪙 {prof['balance']}, топ {rank}"
+        f" _🪙 {prof['balance']}, топ {rank}_"
     )
-    logger.info(
-        "Showing match profile — user_id=%s, name=%s, age=%s, gender=%s",
-        user_id,
-        prof["name"],
-        prof["age"],
-        prof["gender"],
-        prof["count_likes"]
-    )
+    # logger.info(
+    #     "Showing match profile — user_id=%s, name=%s, age=%s, gender=%s",
+    #     user_id,
+    #     prof["name"],
+    #     prof["age"],
+    #     prof["gender"],
+    #     prof["count_likes"]
+    # )
 
     if isinstance(src, Message):
         await src.answer_photo(
             photo=prof["photo_id"],
             caption=caption,
             reply_markup=kb,
-            parse_mode  = None
+            parse_mode = ParseMode.MARKDOWN
         )
     else:
         try:
