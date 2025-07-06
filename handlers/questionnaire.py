@@ -28,7 +28,7 @@ async def process_name(message: types.Message, state: FSMContext, bot : Bot):
         await cmd_start(message, state, bot)
         return
 
-    if len(message.text) < 2:
+    if not message.text or len(message.text) < 2:
         return await message.answer("❌ Имя не может быть короче двух букв")
     
     if message.entities:
@@ -48,7 +48,7 @@ async def process_age(message: types.Message, state: FSMContext):
         await Navigation.go_back(message, state)
         return
 
-    if not message.text.isdigit():
+    if not message.text or not message.text.isdigit():
         return await message.answer("❌ Возраст должен быть целым числом.")
 
     age = int(message.text)
@@ -71,7 +71,7 @@ async def process_gender(message: types.Message, state: FSMContext):
         return
 
     valid_genders = ["Парень", "Девушка"]
-    if message.text not in valid_genders:
+    if not message.text or message.text not in valid_genders:
         return await message.answer("❌ Нет такого варианта ответа")
 
     await state.update_data(gender=message.text)
@@ -90,7 +90,7 @@ async def process_preference(message: types.Message, state: FSMContext):
         return
 
     valid_options = ["Девушки", "Парни"]
-    if message.text not in valid_options:
+    if not message.text or message.text not in valid_options:
         return await message.answer("❌ Нет такого варианта ответа")
 
     await state.update_data(looking_for=message.text)
@@ -111,6 +111,9 @@ async def process_bio(message: types.Message, state: FSMContext):
     # if len(message.text) < 50:
     #     return await message.answer("Your bio should be at least 50 characters. Try again:")
     #
+    if not message.text:
+        return await message.answer("Пожалуйста, расскажите о себе текстом.")
+
     if len(message.text) > 1000:
         return await message.answer("❌ Ваше сообщение не должно быть длиннее 1000 символов.")
     
@@ -162,6 +165,8 @@ async def process_location(message: types.Message, state: FSMContext):
     if message.text == "⬅️ Назад":
         await Navigation.go_back(message, state)
         return
+    if not message.text:
+        return await message.answer("гео или текст")
 
     location_data = None
     city_name = None

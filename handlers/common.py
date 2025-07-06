@@ -197,7 +197,7 @@ async def cmd_likes(message: types.Message, state: FSMContext):
     await show_liked_profile(message, state)
 
 @common_router.message(Command("matches"))
-@common_router.message(StateFilter(ProfileStates.MENU), F.text == "💖 Матчи")
+@common_router.message(StateFilter(ProfileStates.MENU), F.text == "💖 Мэтчи")
 async def cmd_matches(message: Message, state: FSMContext):
     user_id = message.from_user.id
     match_ids = db.get_matches(user_id)  # из database.db
@@ -231,18 +231,18 @@ async def cmd_menu(message: types.Message, state: FSMContext, bot : Bot):
         return
 
     user_id = message.from_user.id
-    unseen_likes = db.get_unseen_count_likes(user_id)
-    unseen_matches= db.get_unseen_matches_count(user_id)
-    notify_parts = []
-    if unseen_likes:
-        notify_parts.append(f"❤️ У вас {unseen_likes} непросмотренных лайков")
-    if unseen_matches:
-        notify_parts.append(f"🤝 У вас {unseen_matches} непросмотренных матчей")
-    if notify_parts:
-        # после показа уведомления можно отметить их как «увиденные»
-        await message.answer("\n".join(notify_parts))
-        db.mark_likes_seen(user_id)
-        db.mark_matches_seen(user_id)
+    # unseen_likes = db.get_unseen_count_likes(user_id)
+    # unseen_matches= db.get_unseen_matches_count(user_id)
+    # notify_parts = []
+    # if unseen_likes:
+    #     notify_parts.append(f"❤️ У вас {unseen_likes} непросмотренных лайков")
+    # if unseen_matches:
+    #     notify_parts.append(f"🤝 У вас {unseen_matches} непросмотренных матчей")
+    # if notify_parts:
+    #     # после показа уведомления можно отметить их как «увиденные»
+    #     await message.answer("\n".join(notify_parts))
+    #     db.mark_likes_seen(user_id)
+    #     db.mark_matches_seen(user_id)
 
     await state.clear()
     user_id = message.from_user.id

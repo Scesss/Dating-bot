@@ -7,6 +7,7 @@ from states.profile_states import ProfileStates
 from handlers.common import show_liked_profile
 from keyboards.builders import *
 from aiogram.exceptions import TelegramBadRequest
+from aiogram.types import ReplyKeyboardRemove
 from handlers.menu import show_next_profile  
 from database.db import *
 
@@ -163,9 +164,25 @@ async def like_with_msg(msg: Message, state: FSMContext):
 
     # 1) Обработка отмены
     if msg.text == "❌ Отмена":
+        # Возвращаем состояние просмотра
         await state.set_state(ProfileStates.BROWSING)
+        # Прячем клавиатуру «Отмена»
+        await msg.answer("Действие отменено.", reply_markup=ReplyKeyboardRemove())
+
+        # 2) Снова показываем текущую анкету
+        profile = db.get_profile(target)
+        rank     = db.get_user_rank(target)
+        caption = (
+            f"{profile['name']}, {profile['age']}, {profile.get('city') or 'Не указан'}\n\n"
+            f"{profile.get('bio','')[:1000]}\n\n"
+            f"🪙 {profile['balance']}, 📊 топ {rank}"
+        )
+        # Вставляем клавиатуру лайков/дизлайнов заново
         kb = get_browse_keyboard(target)
-        await msg.answer("Действие отменено.", reply_markup=kb)
+        if profile.get("photo_id"):
+            await msg.answer_photo(profile["photo_id"], caption=caption, reply_markup=kb)
+        else:
+            await msg.answer(caption,                reply_markup=kb)
         return
 
 
@@ -212,11 +229,25 @@ async def like_with_cash(msg: Message, state: FSMContext):
 
     # Обработка отмены
     if msg.text == "❌ Отмена":
-        # Возвращаем пользователя в состояние просмотра текущего профиля
+        # Возвращаем состояние просмотра
         await state.set_state(ProfileStates.BROWSING)
-        # Отправляем клавиатуру для текущего target
-        keyboard = get_browse_keyboard(target)
-        await msg.answer("Действие отменено.", reply_markup=keyboard)
+        # Прячем клавиатуру «Отмена»
+        await msg.answer("Действие отменено.", reply_markup=ReplyKeyboardRemove())
+
+        # 2) Снова показываем текущую анкету
+        profile = db.get_profile(target)
+        rank     = db.get_user_rank(target)
+        caption = (
+            f"{profile['name']}, {profile['age']}, {profile.get('city') or 'Не указан'}\n\n"
+            f"{profile.get('bio','')[:1000]}\n\n"
+            f"🪙 {profile['balance']}, 📊 топ {rank}"
+        )
+        # Вставляем клавиатуру лайков/дизлайнов заново
+        kb = get_browse_keyboard(target)
+        if profile.get("photo_id"):
+            await msg.answer_photo(profile["photo_id"], caption=caption, reply_markup=kb)
+        else:
+            await msg.answer(caption,                reply_markup=kb)
         return
 
     try:

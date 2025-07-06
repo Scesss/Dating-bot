@@ -322,6 +322,7 @@ class Database:
             LEFT JOIN likes l
               ON l.user_id       = u.user_id
              AND l.liked_user_id = %s
+            ORDER BY m.created_at DESC
             """,
             (user_id, user_id)
         )
